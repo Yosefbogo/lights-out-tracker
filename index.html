@@ -8,14 +8,20 @@
     .room-header { font-size: 20px; font-weight: 800; color: #1a73e8; margin-top: 28px; margin-bottom: 12px; padding-bottom: 4px; border-bottom: 2px solid #d2e3fc; }
     .student-row { background: white; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; justify-content: space-between; align-items: center; transition: background-color 0.2s ease, border 0.2s ease; border: 1px solid transparent; user-select: none; }
     .student-name { font-size: 16px; font-weight: 600; }
+    
     .row-success { background-color: #e6f4ea !important; border: 1px solid #137333 !important; }
     .row-late { background-color: #fef7e0 !important; border: 1px solid #b06000 !important; }
     .row-absent { background-color: #fce8e6 !important; border: 1px solid #c5221f !important; }
+    
     .btn-container { display: flex; gap: 8px; }
     button { border: none; padding: 10px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; touch-action: manipulation; }
     .btn-on-time { background-color: #e6f4ea; color: #137333; }
     .btn-late { background-color: #fef7e0; color: #b06000; }
+    
+    .status-layout { display: flex; align-items: center; gap: 12px; }
     .saved-text { font-size: 13px; font-weight: bold; color: #333; padding: 8px 12px; background: rgba(255,255,255,0.5); border-radius: 6px; text-align: right; }
+    .undo-link { font-size: 12px; color: #c5221f; text-decoration: underline; font-weight: bold; cursor: pointer; }
+    
     #loading { text-align: center; margin-top: 50px; color: #666; font-weight: bold;}
   </style>
 </head>
@@ -25,7 +31,6 @@
   <div id="roster-container"></div>
 
   <script>
-    // --- CONNECTING TO YOUR VAULT ---
     const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyA6mUrZ3cLtql5vVPhN6BHc3C1mSIj6oQwJTgScSWVNhtByfrX6pvh4YTYPvNEomSciA/exec";
 
     window.onload = function() {
@@ -40,6 +45,7 @@
     function renderRoster(students) {
       document.getElementById('loading').style.display = 'none';
       const container = document.getElementById('roster-container');
+      container.innerHTML = ''; 
       let currentRoom = null;
       
       students.forEach((student, index) => {
@@ -55,9 +61,15 @@
         row.className = 'student-row';
         row.id = 'row-' + index; 
         
+        let safeName = student.name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
         let actionHtml = '';
+        
         if (student.loggedTime && student.loggedTime !== "") {
-           actionHtml = `<div class="saved-text">${student.loggedTime}</div>`;
+           actionHtml = `
+            <div class="status-layout">
+              <span class="undo-link" onclick="undoTap('${safeName}', ${index})">Undo</span>
+              <div class="saved-text">${student.loggedTime}</div>
+            </div>`;
            if (student.loggedTime === "On Time") row.classList.add('row-success');
            else if (student.loggedTime === "Absent") row.classList.add('row-absent');
            else row.classList.add('row-late');
@@ -65,20 +77,20 @@
            actionHtml = `
             <div class="btn-container" id="btns-${index}">
               <button class="btn-on-time" 
-                      onpointerdown="startPress('${student.name}', ${index})" 
-                      onpointerup="endPress('${student.name}', 'on_time', ${index})" 
+                      onpointerdown="startPress('${safeName}', ${index})" 
+                      onpointerup="endPress('${safeName}', 'on_time', ${index})" 
                       onpointerleave="cancelPress()" 
                       onpointercancel="cancelPress()"
                       oncontextmenu="return false;">On Time</button>
-              <button class="btn-late" onclick="logTime('${student.name}', 'late', ${index})">Log Time</button>
+              <button class="btn-late" onclick="logTime('${safeName}', 'late', ${index})">Log Time</button>
             </div>
-            <div id="status-${index}" style="display:none;" class="saved-text"></div>
+            <div id="status-${index}" style="display:none;"></div>
            `;
         }
 
         row.innerHTML = `
           <div class="student-name">${student.name}</div>
-          <div>${actionHtml}</div>
+          <div id="action-holder-${index}">${actionHtml}</div>
         `;
         container.appendChild(row);
       });
@@ -103,15 +115,10 @@
     function cancelPress() { clearTimeout(pressTimer); }
 
     function logTime(name, type, index) {
-      const btns = document.getElementById('btns-' + index);
-      const statusDiv = document.getElementById('status-' + index);
+      const holder = document.getElementById('action-holder-' + index);
       const targetRow = document.getElementById('row-' + index);
       
-      if (btns) btns.style.display = 'none';
-      if (statusDiv) {
-        statusDiv.style.display = 'block';
-        statusDiv.innerText = '...';
-      }
+      holder.innerHTML = `<div class="status-layout"><div class="saved-text">...</div></div>`;
       
       targetRow.className = 'student-row'; 
       if (type === 'on_time') targetRow.classList.add('row-success');
@@ -124,7 +131,37 @@
       })
       .then(res => res.json())
       .then(data => {
-        if (statusDiv) statusDiv.innerText = data.time;
+        let safeName = name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+        holder.innerHTML = `
+          <div class="status-layout">
+            <span class="undo-link" onclick="undoTap('${safeName}', ${index})">Undo</span>
+            <div class="saved-text">${data.time}</div>
+          </div>`;
+      });
+    }
+
+    function undoTap(name, index) {
+      const holder = document.getElementById('action-holder-' + index);
+      const targetRow = document.getElementById('row-' + index);
+      
+      targetRow.className = 'student-row';
+      let safeName = name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+      holder.innerHTML = `
+        <div class="btn-container" id="btns-${index}">
+          <button class="btn-on-time" 
+                  onpointerdown="startPress('${safeName}', ${index})" 
+                  onpointerup="endPress('${safeName}', 'on_time', ${index})" 
+                  onpointerleave="cancelPress()" 
+                  onpointercancel="cancelPress()"
+                  oncontextmenu="return false;">On Time</button>
+          <button class="btn-late" onclick="logTime('${safeName}', 'late', ${index})">Log Time</button>
+        </div>
+        <div id="status-${index}" style="display:none;"></div>
+      `;
+      
+      fetch(GOOGLE_SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "clearRow", name: name })
       });
     }
   </script>
