@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: -apple-system, sans-serif; background-color: #f5f7fb; margin: 0; padding: 16px; color: #333; }
+    h2 { text-align: center; color: #1a73e8; margin-bottom: 8px;}
+    .room-header { font-size: 20px; font-weight: 800; color: #1a73e8; margin-top: 28px; margin-bottom: 12px; padding-bottom: 4px; border-bottom: 2px solid #d2e3fc; }
+    .student-row { background: white; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; justify-content: space-between; align-items: center; transition: background-color 0.2s ease, border 0.2s ease; border: 1px solid transparent; user-select: none; }
+    .student-name { font-size: 16px; font-weight: 600; }
+    .row-success { background-color: #e6f4ea !important; border: 1px solid #137333 !important; }
+    .row-late { background-color: #fef7e0 !important; border: 1px solid #b06000 !important; }
+    .row-absent { background-color: #fce8e6 !important; border: 1px solid #c5221f !important; }
+    .btn-container { display: flex; gap: 8px; }
+    button { border: none; padding: 10px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; touch-action: manipulation; }
+    .btn-on-time { background-color: #e6f4ea; color: #137333; }
+    .btn-late { background-color: #fef7e0; color: #b06000; }
+    .saved-text { font-size: 13px; font-weight: bold; color: #333; padding: 8px 12px; background: rgba(255,255,255,0.5); border-radius: 6px; text-align: right; }
+    #loading { text-align: center; margin-top: 50px; color: #666; font-weight: bold;}
+  </style>
+</head>
+<body>
+  <h2>Lights Out</h2>
+  <div id="loading">Loading Rooms...</div>
+  <div id="roster-container"></div>
+
+  <script>
+    // --- CONNECTING TO YOUR VAULT ---
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyA6mUrZ3cLtql5vVPhN6BHc3C1mSIj6oQwJTgScSWVNhtByfrX6pvh4YTYPvNEomSciA/exec";
+
+    window.onload = function() {
+      fetch(GOOGLE_SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "getRoster" })
+      })
+      .then(res => res.json())
+      .then(renderRoster);
+    };
+
+    function renderRoster(students) {
+      document.getElementById('loading').style.display = 'none';
+      const container = document.getElementById('roster-container');
+      let currentRoom = null;
+      
+      students.forEach((student, index) => {
+        if (student.room !== currentRoom) {
+          currentRoom = student.room;
+          const header = document.createElement('div');
+          header.className = 'room-header';
+          header.innerText = 'Room ' + currentRoom;
+          container.appendChild(header);
+        }
+
+        const row = document.createElement('div');
+        row.className = 'student-row';
+        row.id = 'row-' + index; 
+        
+        let actionHtml = '';
+        if (student.loggedTime && student.loggedTime !== "") {
+           actionHtml = `<div class="saved-text">${student.loggedTime}</div>`;
+           if (student.loggedTime === "On Time") row.classList.add('row-success');
+           else if (student.loggedTime === "Absent") row.classList.add('row-absent');
+           else row.classList.add('row-late');
+        } else {
+           actionHtml = `
+            <div class="btn-container" id="btns-${index}">
+              <button class="btn-on-time" 
+                      onpointerdown="startPress('${student.name}', ${index})" 
+                      onpointerup="endPress('${student.name}', 'on_time', ${index})" 
+                      onpointerleave="cancelPress()" 
+                      onpointercancel="cancelPress()"
+                      oncontextmenu="return false;">On Time</button>
+              <button class="btn-late" onclick="logTime('${student.name}', 'late', ${index})">Log Time</button>
+            </div>
+            <div id="status-${index}" style="display:none;" class="saved-text"></div>
+           `;
+        }
+
+        row.innerHTML = `
+          <div class="student-name">${student.name}</div>
+          <div>${actionHtml}</div>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    let pressTimer;
+    let isLongPress = false;
+
+    function startPress(name, index) {
+      isLongPress = false;
+      pressTimer = setTimeout(() => {
+        isLongPress = true;
+        logTime(name, 'absent', index);
+      }, 500); 
+    }
+
+    function endPress(name, type, index) {
+      clearTimeout(pressTimer);
+      if (!isLongPress) logTime(name, type, index); 
+    }
+
+    function cancelPress() { clearTimeout(pressTimer); }
+
+    function logTime(name, type, index) {
+      const btns = document.getElementById('btns-' + index);
+      const statusDiv = document.getElementById('status-' + index);
+      const targetRow = document.getElementById('row-' + index);
+      
+      if (btns) btns.style.display = 'none';
+      if (statusDiv) {
+        statusDiv.style.display = 'block';
+        statusDiv.innerText = '...';
+      }
+      
+      targetRow.className = 'student-row'; 
+      if (type === 'on_time') targetRow.classList.add('row-success');
+      else if (type === 'absent') targetRow.classList.add('row-absent');
+      else targetRow.classList.add('row-late');
+      
+      fetch(GOOGLE_SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "logTime", name: name, type: type })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (statusDiv) statusDiv.innerText = data.time;
+      });
+    }
+  </script>
+</body>
+</html>
