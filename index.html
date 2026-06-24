@@ -18,9 +18,7 @@
     .btn-on-time { background-color: #e6f4ea; color: #137333; }
     .btn-late { background-color: #fef7e0; color: #b06000; }
     
-    .status-layout { display: flex; align-items: center; gap: 12px; }
     .saved-text { font-size: 13px; font-weight: bold; color: #333; padding: 8px 12px; background: rgba(255,255,255,0.5); border-radius: 6px; text-align: right; }
-    .undo-link { font-size: 12px; color: #c5221f; text-decoration: underline; font-weight: bold; cursor: pointer; }
     
     #loading { text-align: center; margin-top: 50px; color: #666; font-weight: bold;}
   </style>
@@ -65,11 +63,14 @@
         let actionHtml = '';
         
         if (student.loggedTime && student.loggedTime !== "") {
-           actionHtml = `
-            <div class="status-layout">
-              <span class="undo-link" onclick="undoTap('${safeName}', ${index})">Undo</span>
-              <div class="saved-text">${student.loggedTime}</div>
-            </div>`;
+           // If already marked, add the long-press undo event to the whole row
+           row.setAttribute('onpointerdown', `startUndoPress('${safeName}', ${index})`);
+           row.setAttribute('onpointerup', `endUndoPress()`);
+           row.setAttribute('onpointerleave', `cancelUndoPress()`);
+           row.setAttribute('onpointercancel', `cancelUndoPress()`);
+           row.setAttribute('oncontextmenu', 'return false;');
+           
+           actionHtml = `<div class="saved-text">${student.loggedTime}</div>`;
            if (student.loggedTime === "On Time") row.classList.add('row-success');
            else if (student.loggedTime === "Absent") row.classList.add('row-absent');
            else row.classList.add('row-late');
@@ -77,14 +78,13 @@
            actionHtml = `
             <div class="btn-container" id="btns-${index}">
               <button class="btn-on-time" 
-                      onpointerdown="startPress('${safeName}', ${index})" 
-                      onpointerup="endPress('${safeName}', 'on_time', ${index})" 
-                      onpointerleave="cancelPress()" 
-                      onpointercancel="cancelPress()"
+                      onpointerdown="startMarkPress('${safeName}', ${index})" 
+                      onpointerup="endMarkPress('${safeName}', 'on_time', ${index})" 
+                      onpointerleave="cancelMarkPress()" 
+                      onpointercancel="cancelMarkPress()"
                       oncontextmenu="return false;">On Time</button>
               <button class="btn-late" onclick="logTime('${safeName}', 'late', ${index})">Log Time</button>
             </div>
-            <div id="status-${index}" style="display:none;"></div>
            `;
         }
 
@@ -96,29 +96,47 @@
       });
     }
 
-    let pressTimer;
-    let isLongPress = false;
+    // --- TIMERS FOR MARKING ABSENT ---
+    let markTimer;
+    let isMarkLongPress = false;
 
-    function startPress(name, index) {
-      isLongPress = false;
-      pressTimer = setTimeout(() => {
-        isLongPress = true;
+    function startMarkPress(name, index) {
+      isMarkLongPress = false;
+      markTimer = setTimeout(() => {
+        isMarkLongPress = true;
         logTime(name, 'absent', index);
       }, 500); 
     }
 
-    function endPress(name, type, index) {
-      clearTimeout(pressTimer);
-      if (!isLongPress) logTime(name, type, index); 
+    function endMarkPress(name, type, index) {
+      clearTimeout(markTimer);
+      if (!isMarkLongPress) logTime(name, type, index); 
     }
 
-    function cancelPress() { clearTimeout(pressTimer); }
+    function cancelMarkPress() { clearTimeout(markTimer); }
+
+
+    // --- TIMERS FOR UNDO LONG-PRESS ---
+    let undoTimer;
+    let isUndoLongPress = false;
+
+    function startUndoPress(name, index) {
+      isUndoLongPress = false;
+      undoTimer = setTimeout(() => {
+        isUndoLongPress = true;
+        undoTap(name, index);
+      }, 600); // 600ms hold to unlock undo
+    }
+
+    function endUndoPress() { clearTimeout(undoTimer); }
+    function cancelUndoPress() { clearTimeout(undoTimer); }
+
 
     function logTime(name, type, index) {
       const holder = document.getElementById('action-holder-' + index);
       const targetRow = document.getElementById('row-' + index);
       
-      holder.innerHTML = `<div class="status-layout"><div class="saved-text">...</div></div>`;
+      holder.innerHTML = `<div class="saved-text">...</div>`;
       
       targetRow.className = 'student-row'; 
       if (type === 'on_time') targetRow.classList.add('row-success');
@@ -132,11 +150,15 @@
       .then(res => res.json())
       .then(data => {
         let safeName = name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
-        holder.innerHTML = `
-          <div class="status-layout">
-            <span class="undo-link" onclick="undoTap('${safeName}', ${index})">Undo</span>
-            <div class="saved-text">${data.time}</div>
-          </div>`;
+        
+        // Attach the secret undo long press functions to the active row
+        targetRow.setAttribute('onpointerdown', `startUndoPress('${safeName}', ${index})`);
+        targetRow.setAttribute('onpointerup', `endUndoPress()`);
+        targetRow.setAttribute('onpointerleave', `cancelUndoPress()`);
+        targetRow.setAttribute('onpointercancel', `cancelUndoPress()`);
+        targetRow.setAttribute('oncontextmenu', 'return false;');
+        
+        holder.innerHTML = `<div class="saved-text">${data.time}</div>`;
       });
     }
 
@@ -144,19 +166,24 @@
       const holder = document.getElementById('action-holder-' + index);
       const targetRow = document.getElementById('row-' + index);
       
+      // Strip out the undo long press listeners since the row is going back to blank buttons
+      targetRow.removeAttribute('onpointerdown');
+      targetRow.removeAttribute('onpointerup');
+      targetRow.removeAttribute('onpointerleave');
+      targetRow.removeAttribute('onpointercancel');
+      
       targetRow.className = 'student-row';
       let safeName = name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
       holder.innerHTML = `
         <div class="btn-container" id="btns-${index}">
           <button class="btn-on-time" 
-                  onpointerdown="startPress('${safeName}', ${index})" 
-                  onpointerup="endPress('${safeName}', 'on_time', ${index})" 
-                  onpointerleave="cancelPress()" 
-                  onpointercancel="cancelPress()"
+                  onpointerdown="startMarkPress('${safeName}', ${index})" 
+                  onpointerup="endMarkPress('${safeName}', 'on_time', ${index})" 
+                  onpointerleave="cancelMarkPress()" 
+                  onpointercancel="cancelMarkPress()"
                   oncontextmenu="return false;">On Time</button>
           <button class="btn-late" onclick="logTime('${safeName}', 'late', ${index})">Log Time</button>
         </div>
-        <div id="status-${index}" style="display:none;"></div>
       `;
       
       fetch(GOOGLE_SCRIPT_URL, {
