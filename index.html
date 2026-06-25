@@ -87,7 +87,7 @@
       align-items: center;
       transition: all 0.3s ease;
     }
-    .room-remaining-tag { font-size: 13px; font-weight: 600; color: var(--remaining-color); margin-left: 6px; font-style: italic; }
+    .room-remaining-tag { font-size: 13px; font-weight: 600; color: var(--remaining-color); margin-left: 6px; font-style: normal; }
     
     /* Archive View Header States */
     .room-header.archive-partial {
@@ -101,27 +101,40 @@
     .room-actions { display: flex; gap: 12px; align-items: center; }
     .btn-bulk { background: var(--saved-bg); border: none; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; color: var(--text-color); cursor: pointer; }
 
-    /* --- STUDENT ROWS & ANIMATIONS --- */
+    /* --- ANIMATION CONTAINERS --- */
+    .row-anim-wrapper {
+      max-height: 100px; /* Large enough to bound normal row bounds */
+      opacity: 1;
+      margin-bottom: 8px;
+      transition: max-height 0.6s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s ease, margin-bottom 0.6s;
+      overflow: hidden;
+    }
+    
+    .row-anim-wrapper.collapse-active {
+      max-height: 0 !important;
+      opacity: 0 !important;
+      margin-bottom: 0 !important;
+    }
+
+    /* --- STUDENT ROWS --- */
     .student-row { 
       background: var(--card-bg); 
       border-radius: 8px; 
       padding: 10px 12px; 
-      margin-bottom: 8px; 
       box-shadow: 0 1px 3px var(--shadow); 
       display: flex;
       justify-content: space-between;
       align-items: center;
-      transition: background-color 0.2s, color 0.2s, border-color 0.2s, transform 0.4s ease-in-out, opacity 0.4s;
+      transition: background-color 0.2s, color 0.2s, border-color 0.2s, transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
       border: 1px solid transparent;
       user-select: none;
       transform: translateX(0);
-      opacity: 1;
     }
     .student-name { font-size: 16px; font-weight: 600; }
     
-    .slide-out-down {
-      transform: translateX(100vw);
-      opacity: 0;
+    /* Lateral structural slide out */
+    .slide-out-right {
+      transform: translateX(110vw) !important;
     }
     
     /* Live State Colors */
@@ -147,7 +160,6 @@
 </head>
 <body>
 
-  <!-- Sticky Top Menu -->
   <div class="top-bar">
     <div class="stats-container">
       <div class="stats-text" id="stats-counter">0 / 0 Done</div>
@@ -173,16 +185,9 @@
     let globalStudents = [];
     let activeTimers = {}; 
 
-    // --- NATIVE HAPTICS ENGINE ---
-    function vibeLight() {
-      if (navigator.vibrate) navigator.vibrate(15);
-    }
-    function vibeDouble() {
-      if (navigator.vibrate) navigator.vibrate([40, 40, 40]);
-    }
-    function vibeUndo() {
-      if (navigator.vibrate) navigator.vibrate(30);
-    }
+    function vibeLight() { if (navigator.vibrate) navigator.vibrate(15); }
+    function vibeDouble() { if (navigator.vibrate) navigator.vibrate([40, 40, 40]); }
+    function vibeUndo() { if (navigator.vibrate) navigator.vibrate(30); }
 
     window.onload = function() {
       if (localStorage.getItem('theme') === 'dark') {
@@ -247,13 +252,13 @@
         let activeKids = roomKids.filter(s => !s.loggedTime || s.loggedTime === "");
         let archivedKids = roomKids.filter(s => s.loggedTime && s.loggedTime !== "");
 
-        // 1. RENDER ACTIVE ZONE (With remaining counts)
+        // 1. RENDER ACTIVE ZONE (Upgraded to display fractional ratios e.g. 1/4 Done)
         if (activeKids.length > 0) {
           const header = document.createElement('div');
           header.className = 'room-header';
           header.id = 'room-hdr-act-' + roomNum;
           header.innerHTML = `
-            <span>Room ${roomNum} <span class="room-remaining-tag">(${activeKids.length} left)</span></span>
+            <span>Room ${roomNum} <span class="room-remaining-tag">(${metrics.marked}/${metrics.total} Done)</span></span>
             <div class="room-actions">
               <button class="btn-bulk" onclick="bulkMarkRoom('${roomNum}')">⚡ Bulk On Time</button>
             </div>
@@ -262,7 +267,13 @@
 
           activeKids.forEach(student => {
             let origIndex = globalStudents.findIndex(s => s.name === student.name);
-            activeZone.appendChild(createStudentRow(student, origIndex, false));
+            
+            const wrapper = document.createElement('div');
+            wrapper.className = 'row-anim-wrapper';
+            wrapper.id = 'wrapper-' + origIndex;
+            wrapper.appendChild(createStudentRow(student, origIndex, false));
+            
+            activeZone.appendChild(wrapper);
           });
         }
 
@@ -277,13 +288,18 @@
             header.innerHTML = `<span>Room ${roomNum} ✅</span>`;
           } else {
             header.className = 'room-header archive-partial';
-            header.innerHTML = `<span>Room ${roomNum} (Checked In)</span>`;
+            header.innerHTML = `<span>Room ${roomNum} (${metrics.marked}/${metrics.total} Checked In)</span>`;
           }
           archiveZone.appendChild(header);
 
           archivedKids.forEach(student => {
             let origIndex = globalStudents.findIndex(s => s.name === student.name);
-            archiveZone.appendChild(createStudentRow(student, origIndex, true));
+            
+            const wrapper = document.createElement('div');
+            wrapper.className = 'row-anim-wrapper';
+            wrapper.appendChild(createStudentRow(student, origIndex, true));
+            
+            archiveZone.appendChild(wrapper);
           });
         }
       });
@@ -339,14 +355,14 @@
       isMarkLongPress = false;
       markTimer = setTimeout(() => {
         isMarkLongPress = true;
-        vibeDouble(); // Double haptic pulse for absent
+        vibeDouble();
         logTime(name, 'absent', index);
       }, 500); 
     }
     function endMarkPress(name, type, index) {
       clearTimeout(markTimer);
       if (!isMarkLongPress) {
-        vibeLight(); // Light click haptic for on-time
+        vibeLight();
         logTime(name, type, index); 
       }
     }
@@ -360,7 +376,7 @@
       isUndoLongPress = false;
       undoTimer = setTimeout(() => {
         isUndoLongPress = true;
-        vibeUndo(); // Sharp haptic pop for undo trigger
+        vibeUndo();
         undoTap(name, index);
       }, 600); 
     }
@@ -370,9 +386,10 @@
     function logTime(name, type, index) {
       let match = globalStudents[index];
       const targetRow = document.getElementById('row-' + index);
+      const wrapper = document.getElementById('wrapper-' + index);
       const holder = document.getElementById('action-holder-' + index);
       
-      if (type === 'late') vibeLight(); // Ensure late button tap also vibrates
+      if (type === 'late') vibeLight();
       if (activeTimers[name]) clearTimeout(activeTimers[name]);
       
       if (targetRow && holder) {
@@ -398,10 +415,19 @@
         match.loggedTime = data.time;
         if (holder) holder.innerHTML = `<div class="saved-text">${data.time}</div>`;
         
+        // Dynamic Slide-out and Collapse pipeline execution
         activeTimers[name] = setTimeout(() => {
-          if (targetRow) {
-            targetRow.classList.add('slide-out-down');
-            setTimeout(() => { renderSplitRoster(); }, 400);
+          if (targetRow && wrapper) {
+            // Step A: Slide the target card sideways over 0.8s
+            targetRow.classList.add('slide-out-right');
+            
+            // Step B: Sequentially shrink the container height so cards underneath slide up smoothly
+            setTimeout(() => {
+              wrapper.classList.add('collapse-active');
+              
+              // Step C: Re-index lists structural layouts inside DOM once spatial translation finishes
+              setTimeout(() => { renderSplitRoster(); }, 600);
+            }, 200);
           } else {
             renderSplitRoster();
           }
@@ -431,7 +457,7 @@
         let origIndex = globalStudents.findIndex(s => s.name === student.name);
         setTimeout(() => {
           logTime(student.name, 'on_time', origIndex);
-        }, seqIndex * 150);
+        }, seqIndex * 200); // 200ms sequential cascade spacing
       });
     }
   </script>
