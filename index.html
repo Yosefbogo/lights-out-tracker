@@ -12,6 +12,7 @@
       --border-color: #d2e3fc;
       --shadow: rgba(0,0,0,0.08);
       --saved-bg: rgba(0, 0, 0, 0.05);
+      --archive-header: #64748b;
     }
 
     [data-theme="dark"] {
@@ -22,9 +23,10 @@
       --border-color: #334155;
       --shadow: rgba(0,0,0,0.3);
       --saved-bg: rgba(255, 255, 255, 0.1);
+      --archive-header: #94a3b8;
     }
 
-    body { font-family: -apple-system, sans-serif; background-color: var(--bg-color); margin: 0; padding: 16px; color: var(--text-color); transition: background 0.3s, color 0.3s; }
+    body { font-family: -apple-system, sans-serif; background-color: var(--bg-color); margin: 0; padding: 16px; color: var(--text-color); transition: background 0.3s, color 0.3s; overflow-x: hidden; }
     
     /* --- STICKY TOP CONTROLS --- */
     .top-bar {
@@ -55,6 +57,20 @@
 
     h2 { text-align: center; color: var(--header-color); margin-top: 8px; margin-bottom: 16px; }
     
+    /* --- SECTION SEPARATORS --- */
+    .section-divider {
+      margin-top: 40px;
+      margin-bottom: 20px;
+      text-align: center;
+      font-weight: 800;
+      font-size: 14px;
+      letter-spacing: 1px;
+      color: var(--archive-header);
+      text-transform: uppercase;
+      border-bottom: 1px dashed var(--border-color);
+      padding-bottom: 8px;
+    }
+
     /* --- ROOM HEADERS --- */
     .room-header {
       font-size: 18px;
@@ -67,13 +83,22 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      transition: color 0.3s;
+      transition: all 0.3s ease;
+    }
+    
+    /* Archive View Header States */
+    .room-header.archive-partial {
+      font-size: 14px;
+      color: var(--archive-header);
+      border-bottom: 1px solid var(--border-color);
+      margin-top: 14px;
     }
     .room-header.completed { color: #137333 !important; border-bottom-color: #a7f3d0; }
+    
     .room-actions { display: flex; gap: 12px; align-items: center; }
     .btn-bulk { background: var(--saved-bg); border: none; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; color: var(--text-color); cursor: pointer; }
 
-    /* --- STUDENT ROWS --- */
+    /* --- STUDENT ROWS & ANIMATIONS --- */
     .student-row { 
       background: var(--card-bg); 
       border-radius: 8px; 
@@ -83,11 +108,19 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      transition: all 0.2s ease;
+      transition: background-color 0.2s, color 0.2s, border-color 0.2s, transform 0.4s ease-in-out, opacity 0.4s;
       border: 1px solid transparent;
       user-select: none;
+      transform: translateX(0);
+      opacity: 1;
     }
     .student-name { font-size: 16px; font-weight: 600; }
+    
+    /* Sliding out animation states */
+    .slide-out-down {
+      transform: translateX(100vw);
+      opacity: 0;
+    }
     
     /* Live State Colors */
     .row-success { background-color: #e6f4ea !important; border: 1px solid #137333 !important; color: #137333; }
@@ -127,12 +160,15 @@
 
   <h2>Lights Out</h2>
   <div id="loading">Loading Rooms...</div>
-  <div id="roster-container"></div>
+  
+  <div id="active-zone"></div>
+  <div id="archive-divider" class="section-divider" style="display:none;">Completed / Archived</div>
+  <div id="archive-zone"></div>
 
   <script>
-    // Embedded live Apps Script URL
     const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyA6mUrZ3cLtql5vVPhN6BHc3C1mSIj6oQwJTgScSWVNhtByfrX6pvh4YTYPvNEomSciA/exec";
     let globalStudents = [];
+    let activeTimers = {}; // Stores the 1.5s visual hold delays
 
     window.onload = function() {
       if (localStorage.getItem('theme') === 'dark') {
@@ -147,7 +183,7 @@
       .then(res => res.json())
       .then(data => {
         globalStudents = data;
-        renderRoster();
+        renderSplitRoster();
       });
     };
 
@@ -169,118 +205,119 @@
       const percentage = total > 0 ? (marked / total) * 100 : 0;
       document.getElementById('stats-progress').style.width = percentage + '%';
       
-      checkRoomCompletions();
+      // Control central divider display
+      document.getElementById('archive-divider').style.display = marked > 0 ? 'block' : 'none';
     }
 
-    function checkRoomCompletions() {
-      let roomMap = {};
-      globalStudents.forEach(s => {
-        if (!roomMap[s.room]) roomMap[s.room] = { total: 0, marked: 0 };
-        roomMap[s.room].total++;
-        if (s.loggedTime && s.loggedTime !== "") roomMap[s.room].marked++;
-      });
-
-      Object.keys(roomMap).forEach(roomNum => {
-        const headerEl = document.getElementById('room-hdr-' + roomNum);
-        const titleEl = document.getElementById('room-title-' + roomNum);
-        if (headerEl && titleEl) {
-          if (roomMap[roomNum].total === roomMap[roomNum].marked) {
-            headerEl.classList.add('completed');
-            titleEl.innerText = `Room ${roomNum} ✅`;
-          } else {
-            headerEl.classList.remove('completed');
-            titleEl.innerText = `Room ${roomNum}`;
-          }
-        }
-      });
-    }
-
-    // --- NEW SMART DYNAMIC SORT ENGINE ---
-    function sortStudents(students) {
-      return [...students].sort((a, b) => {
-        // First sort parameter: Room number (numerical)
-        let roomCompare = a.room.localeCompare(b.room, undefined, {numeric: true});
-        if (roomCompare !== 0) return roomCompare;
-        
-        // Second sort parameter: Done status (unmarked vs. completed)
-        let aDone = a.loggedTime && a.loggedTime !== "" ? 1 : 0;
-        let bDone = b.loggedTime && b.loggedTime !== "" ? 1 : 0;
-        if (aDone !== bDone) return aDone - bDone; // Places marked rows (1) below unmarked rows (0)
-        
-        // Third sort parameter: Alphabetical by Name if statuses match
-        return a.name.localeCompare(b.name);
-      });
-    }
-
-    function renderRoster() {
+    function renderSplitRoster() {
       document.getElementById('loading').style.display = 'none';
-      const container = document.getElementById('roster-container');
-      container.innerHTML = ''; 
+      const activeZone = document.getElementById('active-zone');
+      const archiveZone = document.getElementById('archive-zone');
       
-      // Apply the dynamic sorting parameters
-      const sortedStudents = sortStudents(globalStudents);
-      let currentRoom = null;
+      activeZone.innerHTML = '';
+      archiveZone.innerHTML = '';
       
-      sortedStudents.forEach((student) => {
-        if (student.room !== currentRoom) {
-          currentRoom = student.room;
-          
+      // Compute completion metrics per room cluster
+      let roomMetrics = {};
+      globalStudents.forEach(s => {
+        if (!roomMetrics[s.room]) roomMetrics[s.room] = { total: 0, marked: 0 };
+        roomMetrics[s.room].total++;
+        if (s.loggedTime && s.loggedTime !== "") roomMetrics[s.room].marked++;
+      });
+
+      // Gather sorted unique room lists
+      let distinctRooms = [...new Set(globalStudents.map(s => s.room))].sort((a,b) => a.localeCompare(b, undefined, {numeric:true}));
+
+      distinctRooms.forEach(roomNum => {
+        let metrics = roomMetrics[roomNum];
+        let roomKids = globalStudents.filter(s => s.room === roomNum).sort((a,b) => a.name.localeCompare(b.name));
+        
+        let activeKids = roomKids.filter(s => !s.loggedTime || s.loggedTime === "");
+        let archivedKids = roomKids.filter(s => s.loggedTime && s.loggedTime !== "");
+
+        // 1. RENDER ACTIVE ZONE
+        if (activeKids.length > 0) {
           const header = document.createElement('div');
           header.className = 'room-header';
-          header.id = 'room-hdr-' + currentRoom;
-          
+          header.id = 'room-hdr-act-' + roomNum;
           header.innerHTML = `
-            <span id="room-title-${currentRoom}">Room ${currentRoom}</span>
+            <span>Room ${roomNum}</span>
             <div class="room-actions">
-              <button class="btn-bulk" onclick="bulkMarkRoom('${currentRoom}')">⚡ Bulk On Time</button>
+              <button class="btn-bulk" onclick="bulkMarkRoom('${roomNum}')">⚡ Bulk On Time</button>
             </div>
           `;
-          container.appendChild(header);
+          activeZone.appendChild(header);
+
+          activeKids.forEach(student => {
+            let origIndex = globalStudents.findIndex(s => s.name === student.name);
+            activeZone.appendChild(createStudentRow(student, origIndex, false));
+          });
         }
 
-        // Generate matching index position from memory layout
-        let origIndex = globalStudents.findIndex(s => s.name === student.name);
+        // 2. RENDER ARCHIVE ZONE
+        if (archivedKids.length > 0) {
+          const header = document.createElement('div');
+          header.className = 'room-header';
+          header.id = 'room-hdr-arc-' + roomNum;
+          
+          // Style conversion rule: If all kids are marked, give full layout, else give mini layout
+          if (metrics.total === metrics.marked) {
+            header.className = 'room-header completed';
+            header.innerHTML = `<span>Room ${roomNum} ✅</span>`;
+          } else {
+            header.className = 'room-header archive-partial';
+            header.innerHTML = `<span>Room ${roomNum} (Checked In)</span>`;
+          }
+          archiveZone.appendChild(header);
 
-        const row = document.createElement('div');
-        row.className = 'student-row';
-        row.id = 'row-' + origIndex; 
-        
-        let safeName = student.name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
-        let actionHtml = '';
-        
-        if (student.loggedTime && student.loggedTime !== "") {
-           row.setAttribute('onpointerdown', `startUndoPress('${safeName}', ${origIndex})`);
-           row.setAttribute('onpointerup', `endUndoPress()`);
-           row.setAttribute('onpointerleave', `cancelUndoPress()`);
-           row.setAttribute('onpointercancel', `cancelUndoPress()`);
-           row.setAttribute('oncontextmenu', 'return false;');
-           
-           actionHtml = `<div class="saved-text">${student.loggedTime}</div>`;
-           if (student.loggedTime === "On Time") row.classList.add('row-success');
-           else if (student.loggedTime === "Absent") row.classList.add('row-absent');
-           else row.classList.add('row-late');
-        } else {
-           actionHtml = `
-            <div class="btn-container" id="btns-${origIndex}">
-              <button class="btn-on-time" 
-                      onpointerdown="startMarkPress('${safeName}', ${origIndex})" 
-                      onpointerup="endMarkPress('${safeName}', 'on_time', ${origIndex})" 
-                      onpointerleave="cancelMarkPress()" 
-                      onpointercancel="cancelMarkPress()"
-                      oncontextmenu="return false;">On Time</button>
-              <button class="btn-late" onclick="logTime('${safeName}', 'late', ${origIndex})">Log Time</button>
-            </div>
-           `;
+          archivedKids.forEach(student => {
+            let origIndex = globalStudents.findIndex(s => s.name === student.name);
+            archiveZone.appendChild(createStudentRow(student, origIndex, true));
+          });
         }
-
-        row.innerHTML = `
-          <div class="student-name">${student.name}</div>
-          <div id="action-holder-${origIndex}">${actionHtml}</div>
-        `;
-        container.appendChild(row);
       });
 
       calculateStats();
+    }
+
+    function createStudentRow(student, origIndex, isArchived) {
+      const row = document.createElement('div');
+      row.className = 'student-row';
+      row.id = 'row-' + origIndex;
+      
+      let safeName = student.name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+      let actionHtml = '';
+      
+      if (isArchived) {
+         row.setAttribute('onpointerdown', `startUndoPress('${safeName}', ${origIndex})`);
+         row.setAttribute('onpointerup', `endUndoPress()`);
+         row.setAttribute('onpointerleave', `cancelUndoPress()`);
+         row.setAttribute('onpointercancel', `cancelUndoPress()`);
+         row.setAttribute('oncontextmenu', 'return false;');
+         
+         actionHtml = `<div class="saved-text">${student.loggedTime}</div>`;
+         if (student.loggedTime === "On Time") row.classList.add('row-success');
+         else if (student.loggedTime === "Absent") row.classList.add('row-absent');
+         else row.classList.add('row-late');
+      } else {
+         actionHtml = `
+          <div class="btn-container" id="btns-${origIndex}">
+            <button class="btn-on-time" 
+                    onpointerdown="startMarkPress('${safeName}', ${origIndex})" 
+                    onpointerup="endMarkPress('${safeName}', 'on_time', ${origIndex})" 
+                    onpointerleave="cancelMarkPress()" 
+                    onpointercancel="cancelMarkPress()"
+                    oncontextmenu="return false;">On Time</button>
+            <button class="btn-late" onclick="logTime('${safeName}', 'late', ${origIndex})">Log Time</button>
+          </div>
+         `;
+      }
+
+      row.innerHTML = `
+        <div class="student-name">${student.name}</div>
+        <div id="action-holder-${origIndex}">${actionHtml}</div>
+      `;
+      return row;
     }
 
     // --- LONG PRESS FOR ABSENT ---
@@ -315,15 +352,26 @@
     function cancelUndoPress() { clearTimeout(undoTimer); }
 
     function logTime(name, type, index) {
-      let match = globalStudents.find(s => s.name === name);
-      
-      // Optimistic layout color flash before fetching API payload
+      let match = globalStudents[index];
       const targetRow = document.getElementById('row-' + index);
-      if (targetRow) {
+      const holder = document.getElementById('action-holder-' + index);
+      
+      if (activeTimers[name]) clearTimeout(activeTimers[name]);
+      
+      // Color-lock the row instantaneously 
+      if (targetRow && holder) {
+        holder.innerHTML = `<div class="saved-text">...</div>`;
         targetRow.className = 'student-row';
         if (type === 'on_time') targetRow.classList.add('row-success');
         else if (type === 'absent') targetRow.classList.add('row-absent');
         else targetRow.classList.add('row-late');
+        
+        // Temporarily activate undo listeners during the 1.5s visual freeze window
+        let safeName = name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+        targetRow.setAttribute('onpointerdown', `startUndoPress('${safeName}', ${index})`);
+        targetRow.setAttribute('onpointerup', `endUndoPress()`);
+        targetRow.setAttribute('onpointerleave', `cancelUndoPress()`);
+        targetRow.setAttribute('onpointercancel', `cancelUndoPress()`);
       }
       
       fetch(GOOGLE_SCRIPT_URL, {
@@ -332,18 +380,30 @@
       })
       .then(res => res.json())
       .then(data => {
-        if(match) match.loggedTime = data.time;
-        // Instantly re-trigger structural sort presentation render
-        renderRoster();
+        match.loggedTime = data.time;
+        if (holder) holder.innerHTML = `<div class="saved-text">${data.time}</div>`;
+        
+        // Execute smooth slide-out transition sequence after the grace period delay
+        activeTimers[name] = setTimeout(() => {
+          if (targetRow) {
+            targetRow.classList.add('slide-out-down');
+            // Re-render structural presentation zones once transition wraps up
+            setTimeout(() => { renderSplitRoster(); }, 400);
+          } else {
+            renderSplitRoster();
+          }
+        }, 1500);
       });
     }
 
     function undoTap(name, index) {
-      let match = globalStudents.find(s => s.name === name);
-      if(match) match.loggedTime = "";
+      if (activeTimers[name]) clearTimeout(activeTimers[name]);
       
-      // Instantly pop them back into active alphabetical rendering positions
-      renderRoster();
+      let match = globalStudents[index];
+      match.loggedTime = "";
+      
+      // Instantly restore structure layout upward
+      renderSplitRoster();
 
       fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
@@ -353,12 +413,14 @@
 
     // --- BULK ACTION ---
     function bulkMarkRoom(roomNum) {
-      globalStudents.forEach((student) => {
-        if (student.room === roomNum && (!student.loggedTime || student.loggedTime === "")) {
-          // Send separate threads out to register each kid on time
-          let origIndex = globalStudents.findIndex(s => s.name === student.name);
+      let unmarkedInRoom = globalStudents.filter(s => s.room === roomNum && (!s.loggedTime || s.loggedTime === ""));
+      
+      // Sequentially stagger row tracking calls to ensure clean pipeline transition physics
+      unmarkedInRoom.forEach((student, seqIndex) => {
+        let origIndex = globalStudents.findIndex(s => s.name === student.name);
+        setTimeout(() => {
           logTime(student.name, 'on_time', origIndex);
-        }
+        }, seqIndex * 150);
       });
     }
   </script>
