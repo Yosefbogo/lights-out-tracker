@@ -3,42 +3,199 @@
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <style>
-    body { font-family: -apple-system, sans-serif; background-color: #f5f7fb; margin: 0; padding: 16px; color: #333; }
-    h2 { text-align: center; color: #1a73e8; margin-bottom: 8px;}
-    .room-header { font-size: 20px; font-weight: 800; color: #1a73e8; margin-top: 28px; margin-bottom: 12px; padding-bottom: 4px; border-bottom: 2px solid #d2e3fc; }
-    .student-row { background: white; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; justify-content: space-between; align-items: center; transition: background-color 0.2s ease, border 0.2s ease; border: 1px solid transparent; user-select: none; }
+    /* --- CORE THEME VARIABLES --- */
+    :root {
+      --bg-color: #f5f7fb;
+      --text-color: #333333;
+      --card-bg: #ffffff;
+      --header-color: #1a73e8;
+      --border-color: #d2e3fc;
+      --shadow: rgba(0,0,0,0.08);
+      --saved-bg: rgba(0, 0, 0, 0.05);
+    }
+
+    [data-theme="dark"] {
+      --bg-color: #0f172a;
+      --text-color: #f8fafc;
+      --card-bg: #1e293b;
+      --header-color: #38bdf8;
+      --border-color: #334155;
+      --shadow: rgba(0,0,0,0.3);
+      --saved-bg: rgba(255, 255, 255, 0.1);
+    }
+
+    body { font-family: -apple-system, sans-serif; background-color: var(--bg-color); margin: 0; padding: 16px; color: var(--text-color); transition: background 0.3s, color 0.3s; }
+    
+    /* --- STICKY TOP CONTROLS --- */
+    .top-bar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background-color: var(--card-bg);
+      padding: 12px 16px;
+      margin: -16px -16px 16px -16px;
+      box-shadow: 0 2px 8px var(--shadow);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.3s;
+    }
+    .stats-container { display: flex; flex-direction: column; gap: 4px; }
+    .stats-text { font-size: 14px; font-weight: 700; }
+    .progress-box { width: 120px; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
+    .progress-bar { height: 100%; width: 0%; background: #137333; transition: width 0.3s ease; }
+    
+    /* Dark Mode Toggle Switch */
+    .theme-switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+    .theme-switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+    input:checked + .slider { background-color: #38bdf8; }
+    input:checked + .slider:before { transform: translateX(24px); }
+
+    h2 { text-align: center; color: var(--header-color); margin-top: 8px; margin-bottom: 16px; }
+    
+    /* --- ROOM HEADERS --- */
+    .room-header {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--header-color);
+      margin-top: 24px;
+      margin-bottom: 12px;
+      padding-bottom: 6px;
+      border-bottom: 2px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: color 0.3s;
+    }
+    .room-header.completed { color: #137333 !important; border-bottom-color: #a7f3d0; }
+    .room-actions { display: flex; gap: 12px; align-items: center; }
+    .btn-bulk { background: var(--saved-bg); border: none; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; color: var(--text-color); cursor: pointer; }
+
+    /* --- STUDENT ROWS --- */
+    .student-row { 
+      background: var(--card-bg); 
+      border-radius: 8px; 
+      padding: 10px 12px; 
+      margin-bottom: 8px; 
+      box-shadow: 0 1px 3px var(--shadow); 
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+      user-select: none;
+    }
     .student-name { font-size: 16px; font-weight: 600; }
     
-    .row-success { background-color: #e6f4ea !important; border: 1px solid #137333 !important; }
-    .row-late { background-color: #fef7e0 !important; border: 1px solid #b06000 !important; }
-    .row-absent { background-color: #fce8e6 !important; border: 1px solid #c5221f !important; }
+    /* Live State Colors */
+    .row-success { background-color: #e6f4ea !important; border: 1px solid #137333 !important; color: #137333; }
+    .row-late { background-color: #fef7e0 !important; border: 1px solid #b06000 !important; color: #b06000; }
+    .row-absent { background-color: #fce8e6 !important; border: 1px solid #c5221f !important; color: #c5221f; }
     
+    [data-theme="dark"] .row-success { background-color: #064e3b !important; border: 1px solid #059669 !important; color: #a7f3d0; }
+    [data-theme="dark"] .row-late { background-color: #78350f !important; border: 1px solid #d97706 !important; color: #fde68a; }
+    [data-theme="dark"] .row-absent { background-color: #7f1d1d !important; border: 1px solid #dc2626 !important; color: #fca5a5; }
+
     .btn-container { display: flex; gap: 8px; }
     button { border: none; padding: 10px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; touch-action: manipulation; }
     .btn-on-time { background-color: #e6f4ea; color: #137333; }
     .btn-late { background-color: #fef7e0; color: #b06000; }
     
-    .saved-text { font-size: 13px; font-weight: bold; color: #333; padding: 8px 12px; background: rgba(255,255,255,0.5); border-radius: 6px; text-align: right; }
-    
+    [data-theme="dark"] .btn-on-time { background-color: #064e3b; color: #a7f3d0; }
+    [data-theme="dark"] .btn-late { background-color: #78350f; color: #fde68a; }
+
+    .saved-text { font-size: 13px; font-weight: bold; padding: 8px 12px; background: var(--saved-bg); border-radius: 6px; text-align: right; }
     #loading { text-align: center; margin-top: 50px; color: #666; font-weight: bold;}
   </style>
 </head>
 <body>
+
+  <div class="top-bar">
+    <div class="stats-container">
+      <div class="stats-text" id="stats-counter">0 / 0 Done</div>
+      <div class="progress-box"><div class="progress-bar" id="stats-progress"></div></div>
+    </div>
+    <div>
+      <label class="theme-switch">
+        <input type="checkbox" id="theme-toggle" onclick="toggleTheme()">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
   <h2>Lights Out</h2>
   <div id="loading">Loading Rooms...</div>
   <div id="roster-container"></div>
 
   <script>
     const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyA6mUrZ3cLtql5vVPhN6BHc3C1mSIj6oQwJTgScSWVNhtByfrX6pvh4YTYPvNEomSciA/exec";
+    let globalStudents = [];
 
     window.onload = function() {
+      // Auto-load saved dark mode preference if it exists
+      if (localStorage.getItem('theme') === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.getElementById('theme-toggle').checked = true;
+      }
+      
       fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
         body: JSON.stringify({ action: "getRoster" })
       })
       .then(res => res.json())
-      .then(renderRoster);
+      .then(data => {
+        globalStudents = data;
+        renderRoster(globalStudents);
+      });
     };
+
+    function toggleTheme() {
+      if (document.getElementById('theme-toggle').checked) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        localStorage.setItem('theme', 'dark');
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+        localStorage.setItem('theme', 'light');
+      }
+    }
+
+    function calculateStats() {
+      const total = globalStudents.length;
+      const marked = globalStudents.filter(s => s.loggedTime && s.loggedTime !== "").length;
+      
+      document.getElementById('stats-counter').innerText = `${marked} / ${total} Completed`;
+      const percentage = total > 0 ? (marked / total) * 100 : 0;
+      document.getElementById('stats-progress').style.width = percentage + '%';
+      
+      // Update individual room header highlights
+      checkRoomCompletions();
+    }
+
+    function checkRoomCompletions() {
+      // Group global students by room to see if any rooms are completely done
+      let roomMap = {};
+      globalStudents.forEach(s => {
+        if (!roomMap[s.room]) roomMap[s.room] = { total: 0, marked: 0 };
+        roomMap[s.room].total++;
+        if (s.loggedTime && s.loggedTime !== "") roomMap[s.room].marked++;
+      });
+
+      Object.keys(roomMap).forEach(roomNum => {
+        const headerEl = document.getElementById('room-hdr-' + roomNum);
+        const titleEl = document.getElementById('room-title-' + roomNum);
+        if (headerEl && titleEl) {
+          if (roomMap[roomNum].total === roomMap[roomNum].marked) {
+            headerEl.classList.add('completed');
+            titleEl.innerText = `Room ${roomNum} ✅`;
+          } else {
+            headerEl.classList.remove('completed');
+            titleEl.innerText = `Room ${roomNum}`;
+          }
+        }
+      });
+    }
 
     function renderRoster(students) {
       document.getElementById('loading').style.display = 'none';
@@ -49,9 +206,17 @@
       students.forEach((student, index) => {
         if (student.room !== currentRoom) {
           currentRoom = student.room;
+          
           const header = document.createElement('div');
           header.className = 'room-header';
-          header.innerText = 'Room ' + currentRoom;
+          header.id = 'room-hdr-' + currentRoom;
+          
+          header.innerHTML = `
+            <span id="room-title-${currentRoom}">Room ${currentRoom}</span>
+            <div class="room-actions">
+              <button class="btn-bulk" onclick="bulkMarkRoom('${currentRoom}')">⚡ Bulk On Time</button>
+            </div>
+          `;
           container.appendChild(header);
         }
 
@@ -63,7 +228,6 @@
         let actionHtml = '';
         
         if (student.loggedTime && student.loggedTime !== "") {
-           // If already marked, add the long-press undo event to the whole row
            row.setAttribute('onpointerdown', `startUndoPress('${safeName}', ${index})`);
            row.setAttribute('onpointerup', `endUndoPress()`);
            row.setAttribute('onpointerleave', `cancelUndoPress()`);
@@ -94,9 +258,11 @@
         `;
         container.appendChild(row);
       });
+
+      calculateStats();
     }
 
-    // --- TIMERS FOR MARKING ABSENT ---
+    // --- LONG PRESS FOR ABSENT ---
     let markTimer;
     let isMarkLongPress = false;
 
@@ -107,16 +273,13 @@
         logTime(name, 'absent', index);
       }, 500); 
     }
-
     function endMarkPress(name, type, index) {
       clearTimeout(markTimer);
       if (!isMarkLongPress) logTime(name, type, index); 
     }
-
     function cancelMarkPress() { clearTimeout(markTimer); }
 
-
-    // --- TIMERS FOR UNDO LONG-PRESS ---
+    // --- LONG PRESS FOR UNDO ---
     let undoTimer;
     let isUndoLongPress = false;
 
@@ -125,12 +288,10 @@
       undoTimer = setTimeout(() => {
         isUndoLongPress = true;
         undoTap(name, index);
-      }, 600); // 600ms hold to unlock undo
+      }, 600); 
     }
-
     function endUndoPress() { clearTimeout(undoTimer); }
     function cancelUndoPress() { clearTimeout(undoTimer); }
-
 
     function logTime(name, type, index) {
       const holder = document.getElementById('action-holder-' + index);
@@ -151,7 +312,6 @@
       .then(data => {
         let safeName = name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
         
-        // Attach the secret undo long press functions to the active row
         targetRow.setAttribute('onpointerdown', `startUndoPress('${safeName}', ${index})`);
         targetRow.setAttribute('onpointerup', `endUndoPress()`);
         targetRow.setAttribute('onpointerleave', `cancelUndoPress()`);
@@ -159,6 +319,11 @@
         targetRow.setAttribute('oncontextmenu', 'return false;');
         
         holder.innerHTML = `<div class="saved-text">${data.time}</div>`;
+        
+        // Update local memory data status array and rebuild totals
+        let match = globalStudents.find(s => s.name === name);
+        if(match) match.loggedTime = data.time;
+        calculateStats();
       });
     }
 
@@ -166,7 +331,6 @@
       const holder = document.getElementById('action-holder-' + index);
       const targetRow = document.getElementById('row-' + index);
       
-      // Strip out the undo long press listeners since the row is going back to blank buttons
       targetRow.removeAttribute('onpointerdown');
       targetRow.removeAttribute('onpointerup');
       targetRow.removeAttribute('onpointerleave');
@@ -186,9 +350,23 @@
         </div>
       `;
       
+      let match = globalStudents.find(s => s.name === name);
+      if(match) match.loggedTime = "";
+      calculateStats();
+
       fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
         body: JSON.stringify({ action: "clearRow", name: name })
+      });
+    }
+
+    // --- BULK ACTION ---
+    function bulkMarkRoom(roomNum) {
+      globalStudents.forEach((student, index) => {
+        // Find every unmarked student belonging to this specific room header
+        if (student.room === roomNum && (!student.loggedTime || student.loggedTime === "")) {
+          logTime(student.name, 'on_time', index);
+        }
       });
     }
   </script>
