@@ -130,11 +130,11 @@
   <div id="roster-container"></div>
 
   <script>
+    // Embedded live Apps Script URL
     const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyA6mUrZ3cLtql5vVPhN6BHc3C1mSIj6oQwJTgScSWVNhtByfrX6pvh4YTYPvNEomSciA/exec";
     let globalStudents = [];
 
     window.onload = function() {
-      // Auto-load saved dark mode preference if it exists
       if (localStorage.getItem('theme') === 'dark') {
         document.documentElement.setAttribute('data-theme', 'dark');
         document.getElementById('theme-toggle').checked = true;
@@ -147,7 +147,7 @@
       .then(res => res.json())
       .then(data => {
         globalStudents = data;
-        renderRoster(globalStudents);
+        renderRoster();
       });
     };
 
@@ -169,12 +169,10 @@
       const percentage = total > 0 ? (marked / total) * 100 : 0;
       document.getElementById('stats-progress').style.width = percentage + '%';
       
-      // Update individual room header highlights
       checkRoomCompletions();
     }
 
     function checkRoomCompletions() {
-      // Group global students by room to see if any rooms are completely done
       let roomMap = {};
       globalStudents.forEach(s => {
         if (!roomMap[s.room]) roomMap[s.room] = { total: 0, marked: 0 };
@@ -197,13 +195,33 @@
       });
     }
 
-    function renderRoster(students) {
+    // --- NEW SMART DYNAMIC SORT ENGINE ---
+    function sortStudents(students) {
+      return [...students].sort((a, b) => {
+        // First sort parameter: Room number (numerical)
+        let roomCompare = a.room.localeCompare(b.room, undefined, {numeric: true});
+        if (roomCompare !== 0) return roomCompare;
+        
+        // Second sort parameter: Done status (unmarked vs. completed)
+        let aDone = a.loggedTime && a.loggedTime !== "" ? 1 : 0;
+        let bDone = b.loggedTime && b.loggedTime !== "" ? 1 : 0;
+        if (aDone !== bDone) return aDone - bDone; // Places marked rows (1) below unmarked rows (0)
+        
+        // Third sort parameter: Alphabetical by Name if statuses match
+        return a.name.localeCompare(b.name);
+      });
+    }
+
+    function renderRoster() {
       document.getElementById('loading').style.display = 'none';
       const container = document.getElementById('roster-container');
       container.innerHTML = ''; 
+      
+      // Apply the dynamic sorting parameters
+      const sortedStudents = sortStudents(globalStudents);
       let currentRoom = null;
       
-      students.forEach((student, index) => {
+      sortedStudents.forEach((student) => {
         if (student.room !== currentRoom) {
           currentRoom = student.room;
           
@@ -220,15 +238,18 @@
           container.appendChild(header);
         }
 
+        // Generate matching index position from memory layout
+        let origIndex = globalStudents.findIndex(s => s.name === student.name);
+
         const row = document.createElement('div');
         row.className = 'student-row';
-        row.id = 'row-' + index; 
+        row.id = 'row-' + origIndex; 
         
         let safeName = student.name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
         let actionHtml = '';
         
         if (student.loggedTime && student.loggedTime !== "") {
-           row.setAttribute('onpointerdown', `startUndoPress('${safeName}', ${index})`);
+           row.setAttribute('onpointerdown', `startUndoPress('${safeName}', ${origIndex})`);
            row.setAttribute('onpointerup', `endUndoPress()`);
            row.setAttribute('onpointerleave', `cancelUndoPress()`);
            row.setAttribute('onpointercancel', `cancelUndoPress()`);
@@ -240,21 +261,21 @@
            else row.classList.add('row-late');
         } else {
            actionHtml = `
-            <div class="btn-container" id="btns-${index}">
+            <div class="btn-container" id="btns-${origIndex}">
               <button class="btn-on-time" 
-                      onpointerdown="startMarkPress('${safeName}', ${index})" 
-                      onpointerup="endMarkPress('${safeName}', 'on_time', ${index})" 
+                      onpointerdown="startMarkPress('${safeName}', ${origIndex})" 
+                      onpointerup="endMarkPress('${safeName}', 'on_time', ${origIndex})" 
                       onpointerleave="cancelMarkPress()" 
                       onpointercancel="cancelMarkPress()"
                       oncontextmenu="return false;">On Time</button>
-              <button class="btn-late" onclick="logTime('${safeName}', 'late', ${index})">Log Time</button>
+              <button class="btn-late" onclick="logTime('${safeName}', 'late', ${origIndex})">Log Time</button>
             </div>
            `;
         }
 
         row.innerHTML = `
           <div class="student-name">${student.name}</div>
-          <div id="action-holder-${index}">${actionHtml}</div>
+          <div id="action-holder-${origIndex}">${actionHtml}</div>
         `;
         container.appendChild(row);
       });
@@ -294,15 +315,16 @@
     function cancelUndoPress() { clearTimeout(undoTimer); }
 
     function logTime(name, type, index) {
-      const holder = document.getElementById('action-holder-' + index);
+      let match = globalStudents.find(s => s.name === name);
+      
+      // Optimistic layout color flash before fetching API payload
       const targetRow = document.getElementById('row-' + index);
-      
-      holder.innerHTML = `<div class="saved-text">...</div>`;
-      
-      targetRow.className = 'student-row'; 
-      if (type === 'on_time') targetRow.classList.add('row-success');
-      else if (type === 'absent') targetRow.classList.add('row-absent');
-      else targetRow.classList.add('row-late');
+      if (targetRow) {
+        targetRow.className = 'student-row';
+        if (type === 'on_time') targetRow.classList.add('row-success');
+        else if (type === 'absent') targetRow.classList.add('row-absent');
+        else targetRow.classList.add('row-late');
+      }
       
       fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
@@ -310,49 +332,18 @@
       })
       .then(res => res.json())
       .then(data => {
-        let safeName = name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
-        
-        targetRow.setAttribute('onpointerdown', `startUndoPress('${safeName}', ${index})`);
-        targetRow.setAttribute('onpointerup', `endUndoPress()`);
-        targetRow.setAttribute('onpointerleave', `cancelUndoPress()`);
-        targetRow.setAttribute('onpointercancel', `cancelUndoPress()`);
-        targetRow.setAttribute('oncontextmenu', 'return false;');
-        
-        holder.innerHTML = `<div class="saved-text">${data.time}</div>`;
-        
-        // Update local memory data status array and rebuild totals
-        let match = globalStudents.find(s => s.name === name);
         if(match) match.loggedTime = data.time;
-        calculateStats();
+        // Instantly re-trigger structural sort presentation render
+        renderRoster();
       });
     }
 
     function undoTap(name, index) {
-      const holder = document.getElementById('action-holder-' + index);
-      const targetRow = document.getElementById('row-' + index);
-      
-      targetRow.removeAttribute('onpointerdown');
-      targetRow.removeAttribute('onpointerup');
-      targetRow.removeAttribute('onpointerleave');
-      targetRow.removeAttribute('onpointercancel');
-      
-      targetRow.className = 'student-row';
-      let safeName = name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
-      holder.innerHTML = `
-        <div class="btn-container" id="btns-${index}">
-          <button class="btn-on-time" 
-                  onpointerdown="startMarkPress('${safeName}', ${index})" 
-                  onpointerup="endMarkPress('${safeName}', 'on_time', ${index})" 
-                  onpointerleave="cancelMarkPress()" 
-                  onpointercancel="cancelMarkPress()"
-                  oncontextmenu="return false;">On Time</button>
-          <button class="btn-late" onclick="logTime('${safeName}', 'late', ${index})">Log Time</button>
-        </div>
-      `;
-      
       let match = globalStudents.find(s => s.name === name);
       if(match) match.loggedTime = "";
-      calculateStats();
+      
+      // Instantly pop them back into active alphabetical rendering positions
+      renderRoster();
 
       fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
@@ -362,10 +353,11 @@
 
     // --- BULK ACTION ---
     function bulkMarkRoom(roomNum) {
-      globalStudents.forEach((student, index) => {
-        // Find every unmarked student belonging to this specific room header
+      globalStudents.forEach((student) => {
         if (student.room === roomNum && (!student.loggedTime || student.loggedTime === "")) {
-          logTime(student.name, 'on_time', index);
+          // Send separate threads out to register each kid on time
+          let origIndex = globalStudents.findIndex(s => s.name === student.name);
+          logTime(student.name, 'on_time', origIndex);
         }
       });
     }
