@@ -14,6 +14,11 @@
       --saved-bg: rgba(0, 0, 0, 0.05);
       --archive-header: #64748b;
       --remaining-color: #5f6368;
+      --grid-empty-border: #cbd5e1;
+      --grid-empty-bg: transparent;
+      --grid-fill-color: #34d399;
+      --grid-done-bg: #10b981;
+      --grid-done-text: #ffffff;
     }
 
     [data-theme="dark"] {
@@ -26,6 +31,11 @@
       --saved-bg: rgba(255, 255, 255, 0.1);
       --archive-header: #94a3b8;
       --remaining-color: #94a3b8;
+      --grid-empty-border: #475569;
+      --grid-empty-bg: #1e293b;
+      --grid-fill-color: #0ea5e9;
+      --grid-done-bg: #0284c7;
+      --grid-done-text: #ffffff;
     }
 
     body { font-family: -apple-system, sans-serif; background-color: var(--bg-color); margin: 0; padding: 16px; color: var(--text-color); transition: background 0.3s, color 0.3s; overflow-x: hidden; }
@@ -40,15 +50,63 @@
       margin: -16px -16px 16px -16px;
       box-shadow: 0 2px 8px var(--shadow);
       display: flex;
-      justify-content: space-between;
-      align-items: center;
+      flex-direction: column;
+      gap: 12px;
       transition: background 0.3s;
     }
+    .top-row { display: flex; justify-content: space-between; align-items: center; width: 100%; }
     .stats-container { display: flex; flex-direction: column; gap: 4px; }
     .stats-text { font-size: 14px; font-weight: 700; }
     .progress-box { width: 120px; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
     .progress-bar { height: 100%; width: 0%; background: #137333; transition: width 0.3s ease; }
     
+    /* --- DYNAMIC ROOM DASHBOARD GRID --- */
+    .room-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      width: 100%;
+      padding-top: 4px;
+      border-top: 1px solid var(--border-color);
+    }
+    .grid-square {
+      position: relative;
+      width: 42px;
+      height: 42px;
+      border-radius: 6px;
+      border: 2px solid var(--grid-empty-border);
+      background-color: var(--grid-empty-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 800;
+      overflow: hidden;
+      transition: all 0.3s ease;
+      box-sizing: border-box;
+    }
+    /* Liquid filling background indicator */
+    .grid-fill {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 0%;
+      background-color: var(--grid-fill-color);
+      opacity: 0.35;
+      transition: height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 1;
+    }
+    .grid-label { position: relative; z-index: 2; }
+    
+    /* 100% Completed Room State */
+    .grid-square.room-done {
+      background-color: var(--grid-done-bg) !important;
+      border-color: var(--grid-done-bg) !important;
+      color: var(--grid-done-text) !important;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    }
+
     /* Dark Mode Toggle Switch */
     .theme-switch { position: relative; display: inline-block; width: 50px; height: 26px; }
     .theme-switch input { opacity: 0; width: 0; height: 0; }
@@ -117,13 +175,11 @@
 
     /* --- SMOOTH TRANSITION WRAPPERS --- */
     .row-anim-wrapper {
-      max-height: 70px; /* Locked to standard card profile height */
+      max-height: 70px; 
       opacity: 1;
       margin-bottom: 8px;
       transition: max-height 0.8s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.6s ease, margin-bottom 0.8s;
     }
-    
-    /* Initiates synchronous fading and height collapsing */
     .row-anim-wrapper.collapse-active {
       max-height: 0 !important;
       opacity: 0 !important;
@@ -168,16 +224,20 @@
 <body>
 
   <div class="top-bar">
-    <div class="stats-container">
-      <div class="stats-text" id="stats-counter">0 / 0 Done</div>
-      <div class="progress-box"><div class="progress-bar" id="stats-progress"></div></div>
+    <div class="top-row">
+      <div class="stats-container">
+        <div class="stats-text" id="stats-counter">0 / 0 Done</div>
+        <div class="progress-box"><div class="progress-bar" id="stats-progress"></div></div>
+      </div>
+      <div>
+        <label class="theme-switch">
+          <input type="checkbox" id="theme-toggle" onclick="toggleTheme()">
+          <span class="slider"></span>
+        </label>
+      </div>
     </div>
-    <div>
-      <label class="theme-switch">
-        <input type="checkbox" id="theme-toggle" onclick="toggleTheme()">
-        <span class="slider"></span>
-      </label>
-    </div>
+    
+    <div class="room-grid" id="dashboard-grid"></div>
   </div>
 
   <h2>Lights Out</h2>
@@ -209,6 +269,7 @@
       .then(res => res.json())
       .then(data => {
         globalStudents = data;
+        buildDashboardGrid(); // Construct top display blocks once on launch
         renderSplitRoster();
       });
     };
@@ -224,6 +285,27 @@
       }
     }
 
+    // --- CONSTRUCT THE TOP DASHBOARD BLOCKS ---
+    function buildDashboardGrid() {
+      const gridContainer = document.getElementById('dashboard-grid');
+      gridContainer.innerHTML = '';
+      
+      // Pull unique rooms sorted numerically
+      let distinctRooms = [...new Set(globalStudents.map(s => s.room))].sort((a,b) => a.localeCompare(b, undefined, {numeric:true}));
+      
+      distinctRooms.forEach(roomNum => {
+        const square = document.createElement('div');
+        square.className = 'grid-square';
+        square.id = 'grid-sq-' + roomNum;
+        
+        square.innerHTML = `
+          <div class="grid-fill" id="grid-fill-${roomNum}"></div>
+          <span class="grid-label" id="grid-label-${roomNum}">${roomNum}</span>
+        `;
+        gridContainer.appendChild(square);
+      });
+    }
+
     function calculateStats() {
       const total = globalStudents.length;
       const marked = globalStudents.filter(s => s.loggedTime && s.loggedTime !== "").length;
@@ -233,13 +315,46 @@
       document.getElementById('stats-progress').style.width = percentage + '%';
       
       document.getElementById('archive-divider').style.display = marked > 0 ? 'block' : 'none';
+      
+      // Update top level filling block values
+      updateDashboardProgress();
+    }
+
+    // --- LIVE RE-CALCULATE LEVEL FILL STATS ---
+    function updateDashboardProgress() {
+      let roomMetrics = {};
+      globalStudents.forEach(s => {
+        if (!roomMetrics[s.room]) roomMetrics[s.room] = { total: 0, marked: 0 };
+        roomMetrics[s.room].total++;
+        if (s.loggedTime && s.loggedTime !== "") roomMetrics[s.room].marked++;
+      });
+
+      Object.keys(roomMetrics).forEach(roomNum => {
+        const fillEl = document.getElementById(`grid-fill-${roomNum}`);
+        const squareEl = document.getElementById(`grid-sq-${roomNum}`);
+        const labelEl = document.getElementById(`grid-label-${roomNum}`);
+        
+        if (fillEl && squareEl && labelEl) {
+          let m = roomMetrics[roomNum];
+          let fillPercent = (m.marked / m.total) * 100;
+          
+          // Apply variable height indicator fill
+          fillEl.style.height = fillPercent + '%';
+          
+          if (m.marked === m.total) {
+            squareEl.className = 'grid-square room-done';
+            labelEl.innerText = '✓'; // Changes number to a checkmark when complete
+          } else {
+            squareEl.className = 'grid-square';
+            labelEl.innerText = roomNum; // Reverts back to room number if undone
+          }
+        }
+      });
     }
 
     function renderSplitRoster() {
-      // Never force a DOM redraw if transitions are actively mid-flight
       if (runningAnimationCount > 0) return;
 
-      document.getElementById('loading').style.display = 'none';
       const activeZone = document.getElementById('active-zone');
       const archiveZone = document.getElementById('archive-zone');
       
@@ -362,10 +477,6 @@
       return row;
     }
 
-    // --- LONG PRESS FOR ABSENT ---
-    let markTimer;
-    let isMarkLongPress = false;
-
     function startMarkPress(name, index) {
       isMarkLongPress = false;
       markTimer = setTimeout(() => {
@@ -382,10 +493,6 @@
       }
     }
     function cancelMarkPress() { clearTimeout(markTimer); }
-
-    // --- LONG PRESS FOR UNDO ---
-    let undoTimer;
-    let isUndoLongPress = false;
 
     function startUndoPress(name, index) {
       isUndoLongPress = false;
@@ -406,7 +513,6 @@
       
       if (type === 'late') vibeLight();
       
-      // Color lock immediately on touch
       if (targetRow && holder) {
         holder.innerHTML = `<div class="saved-text">...</div>`;
         targetRow.className = 'student-row';
@@ -415,7 +521,6 @@
         else targetRow.classList.add('row-late');
       }
       
-      // Trigger API pipeline immediately
       fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
         body: JSON.stringify({ action: "logTime", name: name, type: type })
@@ -426,17 +531,16 @@
         if (holder) holder.innerHTML = `<div class="saved-text">${data.time}</div>`;
         
         updateHeaderRatio(match.room);
-        calculateStats();
+        calculateStats(); // Instantly fills top grid indicators on network return
 
-        // RUN SMOOTH DELAYED SLIDE LOOP
         if (wrapper) {
           runningAnimationCount++;
-          wrapper.classList.add('collapse-active'); // Simultaneously drops opacity and shrinks box height over 0.8s
+          wrapper.classList.add('collapse-active');
           
           setTimeout(() => {
             runningAnimationCount--;
             checkBlockCompletion(match.room);
-            renderSplitRoster(); // Clear and reorganize lists only after the animation fully completes
+            renderSplitRoster(); 
           }, 820);
         } else {
           renderSplitRoster();
@@ -463,6 +567,7 @@
       let match = globalStudents[index];
       match.loggedTime = "";
       renderSplitRoster();
+      updateDashboardProgress(); // Instantly drops dashboard block fill values down on reset
 
       fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
@@ -476,7 +581,6 @@
       
       unmarkedInRoom.forEach((student, seqIndex) => {
         let origIndex = globalStudents.findIndex(s => s.name === student.name);
-        // Stagger the network triggers by 150ms so the animations cascade fluidly down the room block
         setTimeout(() => {
           logTime(student.name, 'on_time', origIndex);
         }, seqIndex * 150);
