@@ -73,9 +73,9 @@
       padding-bottom: 8px;
     }
 
-    /* --- ROOM GROUPS (Smooth collapsing containers) --- */
+    /* --- ROOM GROUPS --- */
     .room-block {
-      transition: max-height 0.6s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s ease, margin-bottom 0.6s;
+      transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, margin-bottom 0.4s;
       max-height: 1000px;
       opacity: 1;
       margin-bottom: 16px;
@@ -115,14 +115,15 @@
     .room-actions { display: flex; gap: 12px; align-items: center; }
     .btn-bulk { background: var(--saved-bg); border: none; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; color: var(--text-color); cursor: pointer; }
 
-    /* --- ANIMATION CONTAINERS --- */
+    /* --- INSTANT FADE ANIMATION WRAPPERS --- */
     .row-anim-wrapper {
       max-height: 120px; 
       opacity: 1;
       margin-bottom: 8px;
-      transition: max-height 0.6s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s ease, margin-bottom 0.6s;
+      transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease, margin-bottom 0.35s;
     }
     
+    /* Triggers an instant fade out and smooth vertical slide-up collapse for items below */
     .row-anim-wrapper.collapse-active {
       max-height: 0 !important;
       opacity: 0 !important;
@@ -138,17 +139,10 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      transition: background-color 0.2s, color 0.2s, border-color 0.2s, transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
       border: 1px solid transparent;
       user-select: none;
-      transform: translateX(0);
     }
     .student-name { font-size: 16px; font-weight: 600; }
-    
-    /* Smooth sliding off screen right */
-    .slide-out-right {
-      transform: translateX(110vw) !important;
-    }
     
     /* Live State Colors */
     .row-success { background-color: #e6f4ea !important; border: 1px solid #137333 !important; color: #137333; }
@@ -196,7 +190,7 @@
   <script>
     const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyA6mUrZ3cLtql5vVPhN6BHc3C1mSIj6oQwJTgScSWVNhtByfrX6pvh4YTYPvNEomSciA/exec";
     let globalStudents = [];
-    let pendingRedraws = 0; // Tracks active running transitions safely
+    let activeRunningAnimations = 0; 
 
     function vibeLight() { if (navigator.vibrate) navigator.vibrate(15); }
     function vibeDouble() { if (navigator.vibrate) navigator.vibrate([40, 40, 40]); }
@@ -242,8 +236,7 @@
     }
 
     function renderSplitRoster() {
-      // Safety lock: if names are currently sliding, don't break their animation pipelines
-      if (pendingRedraws > 0) return;
+      if (activeRunningAnimations > 0) return;
 
       document.getElementById('loading').style.display = 'none';
       const activeZone = document.getElementById('active-zone');
@@ -406,26 +399,23 @@
 
     function logTime(name, type, index) {
       let match = globalStudents[index];
-      const targetRow = document.getElementById('row-' + index);
       const wrapper = document.getElementById('wrapper-' + index);
-      const holder = document.getElementById('action-holder-' + index);
       
       if (type === 'late') vibeLight();
       
-      if (targetRow && holder) {
-        holder.innerHTML = `<div class="saved-text">...</div>`;
-        targetRow.className = 'student-row';
-        if (type === 'on_time') targetRow.classList.add('row-success');
-        else if (type === 'absent') targetRow.classList.add('row-absent');
-        else targetRow.classList.add('row-late');
+      // INSTANTLY start the collapse animation sequence locally
+      if (wrapper) {
+        activeRunningAnimations++;
+        wrapper.classList.add('collapse-active'); // Fades and collapses wrapper height over 0.35s
         
-        let safeName = name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
-        targetRow.setAttribute('onpointerdown', `startUndoPress('${safeName}', ${index})`);
-        targetRow.setAttribute('onpointerup', `endUndoPress()`);
-        targetRow.setAttribute('onpointerleave', `cancelUndoPress()`);
-        targetRow.setAttribute('onpointercancel', `cancelUndoPress()`);
+        setTimeout(() => {
+          activeRunningAnimations--;
+          checkBlockCompletion(match.room);
+          renderSplitRoster(); 
+        }, 360);
       }
       
+      // Execute the database request concurrently in the background
       fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
         body: JSON.stringify({ action: "logTime", name: name, type: type })
@@ -433,33 +423,8 @@
       .then(res => res.json())
       .then(data => {
         match.loggedTime = data.time;
-        if (holder) holder.innerHTML = `<div class="saved-text">${data.time}</div>`;
-        
-        // Update fractional counter string in the header right away without redrawing
         updateHeaderRatio(match.room);
         calculateStats();
-
-        // Queue transition pipeline increment lock
-        pendingRedraws++;
-
-        setTimeout(() => {
-          if (targetRow && wrapper) {
-            targetRow.classList.add('slide-out-right'); // Slide right over 0.8s
-            
-            setTimeout(() => {
-              wrapper.classList.add('collapse-active'); // Collapse height down over 0.6s
-              
-              setTimeout(() => {
-                pendingRedraws--; // Unlock redraw pipeline link
-                checkBlockCompletion(match.room);
-                renderSplitRoster(); 
-              }, 600);
-            }, 150);
-          } else {
-            pendingRedraws--;
-            renderSplitRoster();
-          }
-        }, 1500);
       });
     }
 
@@ -474,7 +439,7 @@
       let unmarkedLeft = globalStudents.filter(s => s.room === roomNum && (!s.loggedTime || s.loggedTime === "")).length;
       if (unmarkedLeft === 0) {
         const block = document.getElementById('block-act-' + roomNum);
-        if (block) block.classList.add('collapse-block'); // Collapses the empty header row smoothly
+        if (block) block.classList.add('collapse-block'); 
       }
     }
 
