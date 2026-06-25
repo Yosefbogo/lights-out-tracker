@@ -75,7 +75,7 @@
 
     /* --- ROOM GROUPS --- */
     .room-block {
-      transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, margin-bottom 0.4s;
+      transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease, margin-bottom 0.5s;
       max-height: 1000px;
       opacity: 1;
       margin-bottom: 16px;
@@ -115,15 +115,15 @@
     .room-actions { display: flex; gap: 12px; align-items: center; }
     .btn-bulk { background: var(--saved-bg); border: none; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; color: var(--text-color); cursor: pointer; }
 
-    /* --- INSTANT FADE ANIMATION WRAPPERS --- */
+    /* --- SMOOTH TRANSITION WRAPPERS --- */
     .row-anim-wrapper {
-      max-height: 120px; 
+      max-height: 70px; /* Locked to standard card profile height */
       opacity: 1;
       margin-bottom: 8px;
-      transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease, margin-bottom 0.35s;
+      transition: max-height 0.8s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.6s ease, margin-bottom 0.8s;
     }
     
-    /* Triggers an instant fade out and smooth vertical slide-up collapse for items below */
+    /* Initiates synchronous fading and height collapsing */
     .row-anim-wrapper.collapse-active {
       max-height: 0 !important;
       opacity: 0 !important;
@@ -190,7 +190,7 @@
   <script>
     const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyA6mUrZ3cLtql5vVPhN6BHc3C1mSIj6oQwJTgScSWVNhtByfrX6pvh4YTYPvNEomSciA/exec";
     let globalStudents = [];
-    let activeRunningAnimations = 0; 
+    let runningAnimationCount = 0; 
 
     function vibeLight() { if (navigator.vibrate) navigator.vibrate(15); }
     function vibeDouble() { if (navigator.vibrate) navigator.vibrate([40, 40, 40]); }
@@ -236,7 +236,8 @@
     }
 
     function renderSplitRoster() {
-      if (activeRunningAnimations > 0) return;
+      // Never force a DOM redraw if transitions are actively mid-flight
+      if (runningAnimationCount > 0) return;
 
       document.getElementById('loading').style.display = 'none';
       const activeZone = document.getElementById('active-zone');
@@ -399,23 +400,22 @@
 
     function logTime(name, type, index) {
       let match = globalStudents[index];
+      const targetRow = document.getElementById('row-' + index);
       const wrapper = document.getElementById('wrapper-' + index);
+      const holder = document.getElementById('action-holder-' + index);
       
       if (type === 'late') vibeLight();
       
-      // INSTANTLY start the collapse animation sequence locally
-      if (wrapper) {
-        activeRunningAnimations++;
-        wrapper.classList.add('collapse-active'); // Fades and collapses wrapper height over 0.35s
-        
-        setTimeout(() => {
-          activeRunningAnimations--;
-          checkBlockCompletion(match.room);
-          renderSplitRoster(); 
-        }, 360);
+      // Color lock immediately on touch
+      if (targetRow && holder) {
+        holder.innerHTML = `<div class="saved-text">...</div>`;
+        targetRow.className = 'student-row';
+        if (type === 'on_time') targetRow.classList.add('row-success');
+        else if (type === 'absent') targetRow.classList.add('row-absent');
+        else targetRow.classList.add('row-late');
       }
       
-      // Execute the database request concurrently in the background
+      // Trigger API pipeline immediately
       fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
         body: JSON.stringify({ action: "logTime", name: name, type: type })
@@ -423,8 +423,24 @@
       .then(res => res.json())
       .then(data => {
         match.loggedTime = data.time;
+        if (holder) holder.innerHTML = `<div class="saved-text">${data.time}</div>`;
+        
         updateHeaderRatio(match.room);
         calculateStats();
+
+        // RUN SMOOTH DELAYED SLIDE LOOP
+        if (wrapper) {
+          runningAnimationCount++;
+          wrapper.classList.add('collapse-active'); // Simultaneously drops opacity and shrinks box height over 0.8s
+          
+          setTimeout(() => {
+            runningAnimationCount--;
+            checkBlockCompletion(match.room);
+            renderSplitRoster(); // Clear and reorganize lists only after the animation fully completes
+          }, 820);
+        } else {
+          renderSplitRoster();
+        }
       });
     }
 
@@ -458,9 +474,12 @@
       vibeLight();
       let unmarkedInRoom = globalStudents.filter(s => s.room === roomNum && (!s.loggedTime || s.loggedTime === ""));
       
-      unmarkedInRoom.forEach((student) => {
+      unmarkedInRoom.forEach((student, seqIndex) => {
         let origIndex = globalStudents.findIndex(s => s.name === student.name);
-        logTime(student.name, 'on_time', origIndex);
+        // Stagger the network triggers by 150ms so the animations cascade fluidly down the room block
+        setTimeout(() => {
+          logTime(student.name, 'on_time', origIndex);
+        }, seqIndex * 150);
       });
     }
   </script>
