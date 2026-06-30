@@ -216,25 +216,14 @@
     [data-theme="dark"] .btn-on-time { background-color: #064e3b; color: #a7f3d0; }
     [data-theme="dark"] .btn-late { background-color: #78350f; color: #fde68a; }
 
-    /* --- NATIVE INLINE NUMERIC FIELDS --- */
-    .manual-time-container { display: flex; align-items: center; gap: 4px; }
-    .manual-input {
-      width: 54px;
-      padding: 8px;
-      font-size: 15px;
-      font-weight: bold;
-      border: 1.5px solid var(--border-color);
-      border-radius: 6px;
-      text-align: center;
-      background: var(--card-bg);
-      color: var(--text-color);
+    /* --- INVISIBLE TIME PICKER HARNESS --- */
+    .time-picker-hidden {
+      position: absolute;
+      width: 0;
+      height: 0;
+      opacity: 0;
+      pointer-events: none;
     }
-    /* Clears up default desktop field spinner icons */
-    .manual-input::-webkit-outer-spin-button,
-    .manual-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-    .manual-input { -moz-appearance: textfield; }
-
-    .btn-submit-time { background-color: var(--header-color); color: #ffffff; padding: 9px 12px; }
 
     .saved-text { font-size: 13px; font-weight: bold; padding: 8px 12px; background: var(--saved-bg); border-radius: 6px; text-align: right; }
     #loading { text-align: center; margin-top: 50px; color: #666; font-weight: bold;}
@@ -484,6 +473,8 @@
                     onpointerleave="cancelLatePress()"
                     onpointercancel="cancelLatePress()"
                     oncontextmenu="return false;">Log Time</button>
+            
+            <input type="time" id="picker-${origIndex}" class="time-picker-hidden" onchange="submitPickerTime('${safeName}', ${origIndex})">
           </div>
          `;
       }
@@ -516,7 +507,7 @@
     }
     function cancelMarkPress() { clearTimeout(markTimer); }
 
-    // --- LONG PRESS FOR INLINE MANUAL OVERRIDE NUMPAD ---
+    // --- LONG PRESS FOR NATIVE TIME WHEEL DIALOG ---
     let lateTimer;
     let isLateLongPress = false;
 
@@ -526,24 +517,11 @@
         isLateLongPress = true;
         vibeDouble();
         
-        // Dissolve buttons and spawn direct inline native numeric fields
-        const holder = document.getElementById('action-holder-' + index);
-        let safeName = name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
-        
-        holder.innerHTML = `
-          <div class="manual-time-container">
-            <input type="number" pattern="[0-9]*" inputmode="numeric" id="hour-${index}" class="manual-input" placeholder="HR" min="1" max="12">
-            <span style="font-weight:bold;">:</span>
-            <input type="number" pattern="[0-9]*" inputmode="numeric" id="min-${index}" class="manual-input" placeholder="MN" min="0" max="59">
-            <button class="btn-submit-time" onclick="submitManualTime('${safeName}', ${index})">OK</button>
-          </div>
-        `;
-        
-        // Instantly force system to open the native numeric keyboard
-        setTimeout(() => {
-          const hourInput = document.getElementById(`hour-${index}`);
-          if (hourInput) hourInput.focus();
-        }, 50);
+        // Trigger click event on the hidden standard time field element
+        const pickerEl = document.getElementById(`picker-${index}`);
+        if (pickerEl) {
+          pickerEl.showPicker(); // Instantly tells Android OS to throw open the native clock overlay
+        }
       }, 500);
     }
     function endLatePress(name, index) {
@@ -555,17 +533,23 @@
     }
     function cancelLatePress() { clearTimeout(lateTimer); }
 
-    // --- PROCESS EXPLICIT TIMING INPUT VALUES ---
-    function submitManualTime(name, index) {
-      vibeLight();
-      let hr = document.getElementById(`hour-${index}`).value.trim();
-      let mn = document.getElementById(`min-${index}`).value.trim();
+    // --- PARSE SELECTION FROM OS DIALOG OVERLAY ---
+    function submitPickerTime(name, index) {
+      const pickerEl = document.getElementById(`picker-${index}`);
+      if (!pickerEl || !pickerEl.value) return;
       
-      if (!hr || hr < 1 || hr > 12) { alert("Enter valid hour (1-12)"); return; }
-      if (!mn || mn < 0 || mn > 59) { mn = "00"; }
-      if (mn.length === 1) mn = "0" + mn; // Forces clean look e.g. :05
+      let timeVal = pickerEl.value; // Returns "HH:MM" 24-hr layout string
+      let parts = timeVal.split(':');
+      let hr = parseInt(parts[0], 10);
+      let mn = parts[1];
       
-      let finalString = `${hr}:${mn} PM`; // Defaults to PM cycle logic
+      // Map 24hr format down to human readable PM standard
+      let suffix = " PM";
+      if (hr === 0) { hr = 12; suffix = " AM"; }
+      else if (hr < 12) { suffix = " AM"; }
+      else if (hr > 12) { hr = hr - 12; }
+      
+      let finalString = `${hr}:${mn}${suffix}`;
       logTime(name, 'late', index, finalString);
     }
 
@@ -589,6 +573,8 @@
       const targetRow = document.getElementById('row-' + index);
       const wrapper = document.getElementById('wrapper-' + index);
       const holder = document.getElementById('action-holder-' + index);
+      
+      if (type === 'late' && !manualTime) vibeLight();
       
       if (targetRow && holder) {
         holder.innerHTML = `<div class="saved-text">...</div>`;
