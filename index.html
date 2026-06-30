@@ -536,4 +536,91 @@
     function endUndoPress() { clearTimeout(undoTimer); }
     function cancelUndoPress() { clearTimeout(undoTimer); }
 
-    function logTime(name, type, i
+    function logTime(name, type, index, manualTime = null) {
+      let match = globalStudents[index];
+      const targetRow = document.getElementById('row-' + index);
+      const wrapper = document.getElementById('wrapper-' + index);
+      const holder = document.getElementById('action-holder-' + index);
+      
+      if (targetRow && holder) {
+        holder.innerHTML = `<div class="saved-text">...</div>`;
+        targetRow.className = 'student-row';
+        if (type === 'on_time') targetRow.classList.add('row-success');
+        else if (type === 'absent') targetRow.classList.add('row-absent');
+        else targetRow.classList.add('row-late');
+      }
+      
+      // If manualTime is provided, send that to the server payload instead
+      let payload = { action: "logTime", name: name, type: type };
+      if (manualTime) {
+        payload.manualTime = manualTime;
+      }
+
+      fetch(GOOGLE_SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(data => {
+        match.loggedTime = data.time;
+        if (holder) holder.innerHTML = `<div class="saved-text">${data.time}</div>`;
+        
+        updateHeaderRatio(match.room);
+        calculateStats(); 
+
+        if (wrapper) {
+          runningAnimationCount++;
+          wrapper.classList.add('collapse-active'); 
+          
+          setTimeout(() => {
+            runningAnimationCount--;
+            checkBlockCompletion(match.room);
+            renderSplitRoster(); 
+          }, 820);
+        } else {
+          renderSplitRoster();
+        }
+      });
+    }
+
+    function updateHeaderRatio(roomNum) {
+      let total = globalStudents.filter(s => s.room === roomNum).length;
+      let marked = globalStudents.filter(s => s.room === roomNum && s.loggedTime && s.loggedTime !== "").length;
+      const tag = document.getElementById('ratio-act-' + roomNum);
+      if (tag) tag.innerText = `(${marked}/${total} Done)`;
+    }
+
+    function checkBlockCompletion(roomNum) {
+      let unmarkedLeft = globalStudents.filter(s => s.room === roomNum && (!s.loggedTime || s.loggedTime === "")).length;
+      if (unmarkedLeft === 0) {
+        const block = document.getElementById('block-act-' + roomNum);
+        if (block) block.classList.add('collapse-block'); 
+      }
+    }
+
+    function undoTap(name, index) {
+      let match = globalStudents[index];
+      match.loggedTime = "";
+      renderSplitRoster();
+      updateDashboardProgress(); 
+
+      fetch(GOOGLE_SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "clearRow", name: name })
+      });
+    }
+
+    function bulkMarkRoom(roomNum) {
+      vibeLight();
+      let unmarkedInRoom = globalStudents.filter(s => s.room === roomNum && (!s.loggedTime || s.loggedTime === ""));
+      
+      unmarkedInRoom.forEach((student, seqIndex) => {
+        let origIndex = globalStudents.findIndex(s => s.name === student.name);
+        setTimeout(() => {
+          logTime(student.name, 'on_time', origIndex);
+        }, seqIndex * 150);
+      });
+    }
+  </script>
+</body>
+</html>
