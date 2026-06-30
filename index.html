@@ -216,13 +216,32 @@
     [data-theme="dark"] .btn-on-time { background-color: #064e3b; color: #a7f3d0; }
     [data-theme="dark"] .btn-late { background-color: #78350f; color: #fde68a; }
 
+    /* --- NATIVE INLINE NUMERIC FIELDS --- */
+    .manual-time-container { display: flex; align-items: center; gap: 4px; }
+    .manual-input {
+      width: 54px;
+      padding: 8px;
+      font-size: 15px;
+      font-weight: bold;
+      border: 1.5px solid var(--border-color);
+      border-radius: 6px;
+      text-align: center;
+      background: var(--card-bg);
+      color: var(--text-color);
+    }
+    /* Clears up default desktop field spinner icons */
+    .manual-input::-webkit-outer-spin-button,
+    .manual-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .manual-input { -moz-appearance: textfield; }
+
+    .btn-submit-time { background-color: var(--header-color); color: #ffffff; padding: 9px 12px; }
+
     .saved-text { font-size: 13px; font-weight: bold; padding: 8px 12px; background: var(--saved-bg); border-radius: 6px; text-align: right; }
     #loading { text-align: center; margin-top: 50px; color: #666; font-weight: bold;}
   </style>
 </head>
 <body>
 
-  <!-- Sticky Top Menu Dashboard -->
   <div class="top-bar">
     <div class="top-row">
       <div class="stats-container">
@@ -497,7 +516,7 @@
     }
     function cancelMarkPress() { clearTimeout(markTimer); }
 
-    // --- NEW: LONG PRESS FOR MANUAL OVERRIDE LATE ---
+    // --- LONG PRESS FOR INLINE MANUAL OVERRIDE NUMPAD ---
     let lateTimer;
     let isLateLongPress = false;
 
@@ -506,20 +525,49 @@
       lateTimer = setTimeout(() => {
         isLateLongPress = true;
         vibeDouble();
-        let customTime = prompt(`Enter manual time for ${name} (e.g., 11:05 PM):`);
-        if (customTime && customTime.trim() !== "") {
-          logTime(name, 'late', index, customTime.trim());
-        }
+        
+        // Dissolve buttons and spawn direct inline native numeric fields
+        const holder = document.getElementById('action-holder-' + index);
+        let safeName = name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+        
+        holder.innerHTML = `
+          <div class="manual-time-container">
+            <input type="number" pattern="[0-9]*" inputmode="numeric" id="hour-${index}" class="manual-input" placeholder="HR" min="1" max="12">
+            <span style="font-weight:bold;">:</span>
+            <input type="number" pattern="[0-9]*" inputmode="numeric" id="min-${index}" class="manual-input" placeholder="MN" min="0" max="59">
+            <button class="btn-submit-time" onclick="submitManualTime('${safeName}', ${index})">OK</button>
+          </div>
+        `;
+        
+        // Instantly force system to open the native numeric keyboard
+        setTimeout(() => {
+          const hourInput = document.getElementById(`hour-${index}`);
+          if (hourInput) hourInput.focus();
+        }, 50);
       }, 500);
     }
     function endLatePress(name, index) {
       clearTimeout(lateTimer);
       if (!isLateLongPress) {
         vibeLight();
-        logTime(name, 'late', index); // Standard phone-clock logging
+        logTime(name, 'late', index); 
       }
     }
     function cancelLatePress() { clearTimeout(lateTimer); }
+
+    // --- PROCESS EXPLICIT TIMING INPUT VALUES ---
+    function submitManualTime(name, index) {
+      vibeLight();
+      let hr = document.getElementById(`hour-${index}`).value.trim();
+      let mn = document.getElementById(`min-${index}`).value.trim();
+      
+      if (!hr || hr < 1 || hr > 12) { alert("Enter valid hour (1-12)"); return; }
+      if (!mn || mn < 0 || mn > 59) { mn = "00"; }
+      if (mn.length === 1) mn = "0" + mn; // Forces clean look e.g. :05
+      
+      let finalString = `${hr}:${mn} PM`; // Defaults to PM cycle logic
+      logTime(name, 'late', index, finalString);
+    }
 
     // --- LONG PRESS FOR UNDO ---
     let undoTimer;
@@ -550,7 +598,6 @@
         else targetRow.classList.add('row-late');
       }
       
-      // If manualTime is provided, send that to the server payload instead
       let payload = { action: "logTime", name: name, type: type };
       if (manualTime) {
         payload.manualTime = manualTime;
