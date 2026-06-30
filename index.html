@@ -100,7 +100,6 @@
     }
     .grid-label { position: relative; z-index: 2; }
     
-    /* Solid background paint rule (Preserves original label text layers) */
     .grid-square.room-done {
       background-color: var(--grid-done-bg) !important;
       border-color: var(--grid-done-bg) !important;
@@ -223,6 +222,7 @@
 </head>
 <body>
 
+  <!-- Sticky Top Menu Dashboard -->
   <div class="top-bar">
     <div class="top-row">
       <div class="stats-container">
@@ -335,8 +335,6 @@
           let fillPercent = (m.marked / m.total) * 100;
           
           fillEl.style.height = fillPercent + '%';
-          
-          // Preserves original room number text label layout in all states
           labelEl.innerText = roomNum; 
           
           if (m.marked === m.total) {
@@ -461,7 +459,12 @@
                     onpointerleave="cancelMarkPress()" 
                     onpointercancel="cancelMarkPress()"
                     oncontextmenu="return false;">On Time</button>
-            <button class="btn-late" onclick="logTime('${safeName}', 'late', ${origIndex})">Log Time</button>
+            <button class="btn-late" 
+                    onpointerdown="startLatePress('${safeName}', ${origIndex})"
+                    onpointerup="endLatePress('${safeName}', ${origIndex})"
+                    onpointerleave="cancelLatePress()"
+                    onpointercancel="cancelLatePress()"
+                    oncontextmenu="return false;">Log Time</button>
           </div>
          `;
       }
@@ -472,6 +475,10 @@
       `;
       return row;
     }
+
+    // --- LONG PRESS FOR ABSENT ---
+    let markTimer;
+    let isMarkLongPress = false;
 
     function startMarkPress(name, index) {
       isMarkLongPress = false;
@@ -490,6 +497,34 @@
     }
     function cancelMarkPress() { clearTimeout(markTimer); }
 
+    // --- NEW: LONG PRESS FOR MANUAL OVERRIDE LATE ---
+    let lateTimer;
+    let isLateLongPress = false;
+
+    function startLatePress(name, index) {
+      isLateLongPress = false;
+      lateTimer = setTimeout(() => {
+        isLateLongPress = true;
+        vibeDouble();
+        let customTime = prompt(`Enter manual time for ${name} (e.g., 11:05 PM):`);
+        if (customTime && customTime.trim() !== "") {
+          logTime(name, 'late', index, customTime.trim());
+        }
+      }, 500);
+    }
+    function endLatePress(name, index) {
+      clearTimeout(lateTimer);
+      if (!isLateLongPress) {
+        vibeLight();
+        logTime(name, 'late', index); // Standard phone-clock logging
+      }
+    }
+    function cancelLatePress() { clearTimeout(lateTimer); }
+
+    // --- LONG PRESS FOR UNDO ---
+    let undoTimer;
+    let isUndoLongPress = false;
+
     function startUndoPress(name, index) {
       isUndoLongPress = false;
       undoTimer = setTimeout(() => {
@@ -501,87 +536,4 @@
     function endUndoPress() { clearTimeout(undoTimer); }
     function cancelUndoPress() { clearTimeout(undoTimer); }
 
-    function logTime(name, type, index) {
-      let match = globalStudents[index];
-      const targetRow = document.getElementById('row-' + index);
-      const wrapper = document.getElementById('wrapper-' + index);
-      const holder = document.getElementById('action-holder-' + index);
-      
-      if (type === 'late') vibeLight();
-      
-      if (targetRow && holder) {
-        holder.innerHTML = `<div class="saved-text">...</div>`;
-        targetRow.className = 'student-row';
-        if (type === 'on_time') targetRow.classList.add('row-success');
-        else if (type === 'absent') targetRow.classList.add('row-absent');
-        else targetRow.classList.add('row-late');
-      }
-      
-      fetch(GOOGLE_SCRIPT_URL, {
-        method: "POST",
-        body: JSON.stringify({ action: "logTime", name: name, type: type })
-      })
-      .then(res => res.json())
-      .then(data => {
-        match.loggedTime = data.time;
-        if (holder) holder.innerHTML = `<div class="saved-text">${data.time}</div>`;
-        
-        updateHeaderRatio(match.room);
-        calculateStats(); 
-
-        if (wrapper) {
-          runningAnimationCount++;
-          wrapper.classList.add('collapse-active'); 
-          
-          setTimeout(() => {
-            runningAnimationCount--;
-            checkBlockCompletion(match.room);
-            renderSplitRoster(); 
-          }, 820);
-        } else {
-          renderSplitRoster();
-        }
-      });
-    }
-
-    function updateHeaderRatio(roomNum) {
-      let total = globalStudents.filter(s => s.room === roomNum).length;
-      let marked = globalStudents.filter(s => s.room === roomNum && s.loggedTime && s.loggedTime !== "").length;
-      const tag = document.getElementById('ratio-act-' + roomNum);
-      if (tag) tag.innerText = `(${marked}/${total} Done)`;
-    }
-
-    function checkBlockCompletion(roomNum) {
-      let unmarkedLeft = globalStudents.filter(s => s.room === roomNum && (!s.loggedTime || s.loggedTime === "")).length;
-      if (unmarkedLeft === 0) {
-        const block = document.getElementById('block-act-' + roomNum);
-        if (block) block.classList.add('collapse-block'); 
-      }
-    }
-
-    function undoTap(name, index) {
-      let match = globalStudents[index];
-      match.loggedTime = "";
-      renderSplitRoster();
-      updateDashboardProgress(); 
-
-      fetch(GOOGLE_SCRIPT_URL, {
-        method: "POST",
-        body: JSON.stringify({ action: "clearRow", name: name })
-      });
-    }
-
-    function bulkMarkRoom(roomNum) {
-      vibeLight();
-      let unmarkedInRoom = globalStudents.filter(s => s.room === roomNum && (!s.loggedTime || s.loggedTime === ""));
-      
-      unmarkedInRoom.forEach((student, seqIndex) => {
-        let origIndex = globalStudents.findIndex(s => s.name === student.name);
-        setTimeout(() => {
-          logTime(student.name, 'on_time', origIndex);
-        }, seqIndex * 150);
-      });
-    }
-  </script>
-</body>
-</html>
+    function logTime(name, type, i
