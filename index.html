@@ -1,24 +1,53 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+  >
+
+  <meta name="theme-color" content="#f5f7fb">
+
+  <title>Lights Out</title>
+
   <style>
-    /* --- CORE THEME VARIABLES --- */
     :root {
       --bg-color: #f5f7fb;
-      --text-color: #333333;
+      --text-color: #1f2937;
       --card-bg: #ffffff;
       --header-color: #1a73e8;
       --border-color: #d2e3fc;
-      --shadow: rgba(0,0,0,0.08);
+      --shadow: rgba(0, 0, 0, 0.08);
       --saved-bg: rgba(0, 0, 0, 0.05);
       --archive-header: #64748b;
       --remaining-color: #5f6368;
+
       --grid-empty-border: #cbd5e1;
       --grid-empty-bg: transparent;
       --grid-fill-color: #34d399;
       --grid-done-bg: #10b981;
       --grid-done-text: #ffffff;
+
+      --success-bg: #e6f4ea;
+      --success-border: #137333;
+      --success-text: #137333;
+
+      --late-bg: #fef7e0;
+      --late-border: #b06000;
+      --late-text: #b06000;
+
+      --absent-bg: #fce8e6;
+      --absent-border: #c5221f;
+      --absent-text: #c5221f;
+
+      --error-bg: #fff1f2;
+      --error-border: #e11d48;
+      --error-text: #be123c;
+
+      --button-neutral-bg: #eef2f7;
+      --button-neutral-text: #334155;
     }
 
     [data-theme="dark"] {
@@ -27,66 +56,241 @@
       --card-bg: #1e293b;
       --header-color: #38bdf8;
       --border-color: #334155;
-      --shadow: rgba(0,0,0,0.3);
+      --shadow: rgba(0, 0, 0, 0.3);
       --saved-bg: rgba(255, 255, 255, 0.1);
       --archive-header: #94a3b8;
       --remaining-color: #94a3b8;
+
       --grid-empty-border: #475569;
       --grid-empty-bg: #1e293b;
       --grid-fill-color: #0ea5e9;
       --grid-done-bg: #0284c7;
       --grid-done-text: #ffffff;
+
+      --success-bg: #064e3b;
+      --success-border: #059669;
+      --success-text: #a7f3d0;
+
+      --late-bg: #78350f;
+      --late-border: #d97706;
+      --late-text: #fde68a;
+
+      --absent-bg: #7f1d1d;
+      --absent-border: #dc2626;
+      --absent-text: #fca5a5;
+
+      --error-bg: #4c0519;
+      --error-border: #e11d48;
+      --error-text: #fda4af;
+
+      --button-neutral-bg: #334155;
+      --button-neutral-text: #e2e8f0;
     }
 
-    body { font-family: -apple-system, sans-serif; background-color: var(--bg-color); margin: 0; padding: 16px; color: var(--text-color); transition: background 0.3s, color 0.3s; overflow-x: hidden; }
-    
-    /* --- STICKY TOP CONTROLS --- */
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      margin: 0;
+      padding: 16px;
+      overflow-x: hidden;
+      transition:
+        background-color 0.3s ease,
+        color 0.3s ease;
+    }
+
+    button {
+      font-family: inherit;
+    }
+
+    /* =========================
+       STICKY TOP DASHBOARD
+       ========================= */
+
     .top-bar {
       position: sticky;
       top: 0;
       z-index: 100;
       background-color: var(--card-bg);
       padding: 12px 16px;
-      margin: -16px -16px 16px -16px;
+      margin: -16px -16px 16px;
       box-shadow: 0 2px 8px var(--shadow);
       display: flex;
       flex-direction: column;
       gap: 10px;
-      transition: background 0.3s;
+      transition: background-color 0.3s ease;
     }
-    .top-row { display: flex; justify-content: space-between; align-items: center; width: 100%; }
-    .stats-container { display: flex; flex-direction: column; gap: 4px; }
-    .stats-text { font-size: 14px; font-weight: 700; }
-    .progress-box { width: 120px; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
-    .progress-bar { height: 100%; width: 0%; background: #137333; transition: width 0.3s ease; }
-    
-    /* --- SLIM ROW SINGLE-LINE DASHBOARD GRID --- */
+
+    .top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      gap: 12px;
+    }
+
+    .app-heading {
+      min-width: 0;
+    }
+
+    .app-title {
+      color: var(--header-color);
+      font-size: 20px;
+      font-weight: 850;
+      line-height: 1.1;
+      margin-bottom: 3px;
+    }
+
+    .app-date {
+      color: var(--remaining-color);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .stats-container {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      align-items: flex-end;
+    }
+
+    .stats-text {
+      font-size: 13px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .progress-box {
+      width: 110px;
+      height: 8px;
+      background: #e2e8f0;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    [data-theme="dark"] .progress-box {
+      background: #334155;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: #137333;
+      border-radius: 999px;
+      transition: width 0.35s ease;
+    }
+
+    [data-theme="dark"] .progress-bar {
+      background: #10b981;
+    }
+
+    /* =========================
+       THEME SWITCH
+       ========================= */
+
+    .theme-switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 26px;
+      flex-shrink: 0;
+    }
+
+    .theme-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background-color: #cbd5e1;
+      transition: 0.3s;
+      border-radius: 34px;
+    }
+
+    .slider::before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: 0.3s;
+      border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    }
+
+    input:checked + .slider {
+      background-color: #38bdf8;
+    }
+
+    input:checked + .slider::before {
+      transform: translateX(24px);
+    }
+
+    /* =========================
+       ROOM DASHBOARD GRID
+       ========================= */
+
     .room-grid {
       display: flex;
       flex-direction: row;
-      justify-content: space-between;
-      gap: 4px;
+      gap: 5px;
       width: 100%;
-      padding-top: 6px;
+      padding-top: 8px;
       border-top: 1px solid var(--border-color);
+      overflow-x: auto;
+      scrollbar-width: none;
     }
+
+    .room-grid::-webkit-scrollbar {
+      display: none;
+    }
+
     .grid-square {
       position: relative;
-      flex: 1;
-      height: 34px;
-      min-width: 0; 
-      border-radius: 5px;
+      flex: 1 0 48px;
+      min-width: 48px;
+      height: 42px;
+      border-radius: 7px;
       border: 1.5px solid var(--grid-empty-border);
       background-color: var(--grid-empty-bg);
+      color: var(--text-color);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 11px;
-      font-weight: 800;
       overflow: hidden;
-      transition: all 0.3s ease;
-      box-sizing: border-box;
+      transition:
+        transform 0.15s ease,
+        background-color 0.3s ease,
+        border-color 0.3s ease;
+      cursor: pointer;
+      touch-action: manipulation;
     }
+
+    .grid-square:active {
+      transform: scale(0.94);
+    }
+
     .grid-fill {
       position: absolute;
       bottom: 0;
@@ -98,561 +302,1818 @@
       transition: height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
       z-index: 1;
     }
-    .grid-label { position: relative; z-index: 2; }
-    
+
+    .grid-label {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      line-height: 1.05;
+    }
+
+    .grid-room-number {
+      font-size: 11px;
+      font-weight: 850;
+    }
+
+    .grid-room-ratio {
+      font-size: 9px;
+      font-weight: 750;
+      opacity: 0.8;
+      margin-top: 3px;
+    }
+
     .grid-square.room-done {
       background-color: var(--grid-done-bg) !important;
       border-color: var(--grid-done-bg) !important;
       color: var(--grid-done-text) !important;
     }
 
-    /* Dark Mode Toggle Switch */
-    .theme-switch { position: relative; display: inline-block; width: 50px; height: 26px; }
-    .theme-switch input { opacity: 0; width: 0; height: 0; }
-    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
-    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
-    input:checked + .slider { background-color: #38bdf8; }
-    input:checked + .slider:before { transform: translateX(24px); }
+    /* =========================
+       INSTRUCTIONS
+       ========================= */
 
-    h2 { text-align: center; color: var(--header-color); margin-top: 8px; margin-bottom: 16px; }
-    
-    /* --- SECTION SEPARATORS --- */
+    .instructions {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      color: var(--remaining-color);
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-bottom: 16px;
+      font-size: 12px;
+      font-weight: 650;
+      line-height: 1.45;
+      box-shadow: 0 1px 3px var(--shadow);
+    }
+
+    .instructions strong {
+      color: var(--text-color);
+    }
+
+    /* =========================
+       SECTIONS
+       ========================= */
+
     .section-divider {
-      margin-top: 40px;
-      margin-bottom: 20px;
+      margin-top: 34px;
+      margin-bottom: 16px;
       text-align: center;
-      font-weight: 800;
-      font-size: 14px;
-      letter-spacing: 1px;
+      font-weight: 850;
+      font-size: 13px;
+      letter-spacing: 0.8px;
       color: var(--archive-header);
       text-transform: uppercase;
       border-bottom: 1px dashed var(--border-color);
       padding-bottom: 8px;
     }
 
-    /* --- ROOM GROUPS --- */
     .room-block {
-      transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease, margin-bottom 0.5s;
-      max-height: 1000px;
+      overflow: hidden;
       opacity: 1;
-      margin-bottom: 16px;
-    }
-    .room-block.collapse-block {
-      max-height: 0 !important;
-      opacity: 0 !important;
-      margin-bottom: 0 !important;
-      pointer-events: none;
+      margin-bottom: 18px;
+      transition:
+        height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+        opacity 0.3s ease,
+        margin-bottom 0.4s ease;
     }
 
-    /* --- ROOM HEADERS --- */
+    .room-block.room-leaving {
+      height: 0 !important;
+      opacity: 0;
+      margin-bottom: 0;
+    }
+
+    /* =========================
+       ROOM HEADERS
+       ========================= */
+
     .room-header {
       font-size: 18px;
-      font-weight: 800;
+      font-weight: 850;
       color: var(--header-color);
-      margin-top: 12px;
-      margin-bottom: 12px;
-      padding-bottom: 6px;
+      margin: 12px 0;
+      padding-bottom: 7px;
       border-bottom: 2px solid var(--border-color);
       display: flex;
       justify-content: space-between;
       align-items: center;
-      transition: all 0.3s ease;
+      gap: 10px;
+      scroll-margin-top: 145px;
     }
-    .room-remaining-tag { font-size: 13px; font-weight: 600; color: var(--remaining-color); margin-left: 6px; }
-    
-    /* Archive View Header States */
-    .room-header.archive-partial {
-      font-size: 14px;
-      color: var(--archive-header);
-      border-bottom: 1px solid var(--border-color);
-      margin-top: 14px;
-    }
-    .room-header.completed { color: #137333 !important; border-bottom-color: #a7f3d0; }
-    
-    .room-actions { display: flex; gap: 12px; align-items: center; }
-    .btn-bulk { background: var(--saved-bg); border: none; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; color: var(--text-color); cursor: pointer; }
 
-    /* --- SMOOTH TRANSITION WRAPPERS --- */
+    .room-title {
+      min-width: 0;
+    }
+
+    .room-remaining-tag {
+      font-size: 12px;
+      font-weight: 650;
+      color: var(--remaining-color);
+      margin-left: 4px;
+      white-space: nowrap;
+    }
+
+    .room-actions {
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .btn-bulk {
+      background: var(--button-neutral-bg);
+      color: var(--button-neutral-text);
+      border: none;
+      padding: 7px 9px;
+      border-radius: 7px;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .btn-bulk:active {
+      transform: scale(0.97);
+    }
+
+    /* =========================
+       STUDENT ROW ANIMATION
+       ========================= */
+
     .row-anim-wrapper {
-      max-height: 70px; 
+      height: auto;
       opacity: 1;
+      transform: translateX(0);
+      overflow: hidden;
       margin-bottom: 8px;
-      transition: max-height 0.8s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.6s ease, margin-bottom 0.8s;
-    }
-    .row-anim-wrapper.collapse-active {
-      max-height: 0 !important;
-      opacity: 0 !important;
-      margin-bottom: 0 !important;
+      transition:
+        height 0.52s cubic-bezier(0.4, 0, 0.2, 1),
+        opacity 0.36s ease,
+        transform 0.46s ease,
+        margin-bottom 0.52s ease;
+      will-change: height, opacity, transform;
     }
 
-    /* --- STUDENT ROWS --- */
-    .student-row { 
-      background: var(--card-bg); 
-      border-radius: 8px; 
-      padding: 10px 12px; 
-      box-shadow: 0 1px 3px var(--shadow); 
+    .row-anim-wrapper.row-leaving {
+      height: 0 !important;
+      opacity: 0;
+      transform: translateX(28px);
+      margin-bottom: 0;
+    }
+
+    /* =========================
+       STUDENT ROWS
+       ========================= */
+
+    .student-row {
+      background: var(--card-bg);
+      border-radius: 9px;
+      padding: 9px 10px 9px 12px;
+      min-height: 56px;
+      box-shadow: 0 1px 3px var(--shadow);
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 10px;
       border: 1px solid transparent;
       user-select: none;
+      transition:
+        background-color 0.18s ease,
+        border-color 0.18s ease,
+        color 0.18s ease;
     }
-    .student-name { font-size: 16px; font-weight: 600; }
-    
-    /* Live State Colors */
-    .row-success { background-color: #e6f4ea !important; border: 1px solid #137333 !important; color: #137333; }
-    .row-late { background-color: #fef7e0 !important; border: 1px solid #b06000 !important; color: #b06000; }
-    .row-absent { background-color: #fce8e6 !important; border: 1px solid #c5221f !important; color: #c5221f; }
-    
-    [data-theme="dark"] .row-success { background-color: #064e3b !important; border: 1px solid #059669 !important; color: #a7f3d0; }
-    [data-theme="dark"] .row-late { background-color: #78350f !important; border: 1px solid #d97706 !important; color: #fde68a; }
-    [data-theme="dark"] .row-absent { background-color: #7f1d1d !important; border: 1px solid #dc2626 !important; color: #fca5a5; }
 
-    .btn-container { display: flex; gap: 8px; }
-    button { border: none; padding: 10px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; touch-action: manipulation; }
-    .btn-on-time { background-color: #e6f4ea; color: #137333; }
-    .btn-late { background-color: #fef7e0; color: #b06000; }
-    
-    [data-theme="dark"] .btn-on-time { background-color: #064e3b; color: #a7f3d0; }
-    [data-theme="dark"] .btn-late { background-color: #78350f; color: #fde68a; }
+    .student-name {
+      font-size: 16px;
+      font-weight: 680;
+      line-height: 1.2;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
 
-    /* --- INVISIBLE TIME PICKER HARNESS --- */
+    .row-success {
+      background-color: var(--success-bg) !important;
+      border-color: var(--success-border) !important;
+      color: var(--success-text);
+    }
+
+    .row-late {
+      background-color: var(--late-bg) !important;
+      border-color: var(--late-border) !important;
+      color: var(--late-text);
+    }
+
+    .row-absent {
+      background-color: var(--absent-bg) !important;
+      border-color: var(--absent-border) !important;
+      color: var(--absent-text);
+    }
+
+    .row-error {
+      background-color: var(--error-bg) !important;
+      border-color: var(--error-border) !important;
+      color: var(--error-text);
+    }
+
+    .btn-container {
+      display: flex;
+      gap: 7px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .action-button {
+      border: none;
+      min-height: 38px;
+      padding: 8px 11px;
+      border-radius: 7px;
+      font-weight: 800;
+      cursor: pointer;
+      font-size: 12px;
+      touch-action: manipulation;
+      white-space: nowrap;
+    }
+
+    .action-button:active {
+      transform: scale(0.96);
+    }
+
+    .action-button:disabled {
+      opacity: 0.55;
+      cursor: default;
+      transform: none;
+    }
+
+    .btn-on-time {
+      background-color: var(--success-bg);
+      color: var(--success-text);
+      border: 1px solid color-mix(in srgb, var(--success-border) 45%, transparent);
+    }
+
+    .btn-late {
+      background-color: var(--late-bg);
+      color: var(--late-text);
+      border: 1px solid color-mix(in srgb, var(--late-border) 45%, transparent);
+    }
+
+    .saved-text {
+      font-size: 12px;
+      font-weight: 850;
+      padding: 8px 10px;
+      background: var(--saved-bg);
+      border-radius: 7px;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .saving-text {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .saving-spinner {
+      width: 13px;
+      height: 13px;
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .retry-button {
+      border: 1px solid var(--error-border);
+      color: var(--error-text);
+      background: transparent;
+      border-radius: 7px;
+      padding: 8px 10px;
+      min-height: 38px;
+      font-size: 12px;
+      font-weight: 850;
+      cursor: pointer;
+    }
+
     .time-picker-hidden {
-      position: absolute;
-      width: 0;
-      height: 0;
+      position: fixed;
+      left: -1000px;
+      top: -1000px;
+      width: 1px;
+      height: 1px;
       opacity: 0;
       pointer-events: none;
     }
 
-    .saved-text { font-size: 13px; font-weight: bold; padding: 8px 12px; background: var(--saved-bg); border-radius: 6px; text-align: right; }
-    #loading { text-align: center; margin-top: 50px; color: #666; font-weight: bold;}
+    /* =========================
+       ARCHIVE
+       ========================= */
+
+    .archive-room-block {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      margin-bottom: 10px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px var(--shadow);
+      scroll-margin-top: 145px;
+    }
+
+    .archive-room-header {
+      min-height: 50px;
+      padding: 11px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      user-select: none;
+      touch-action: manipulation;
+    }
+
+    .archive-room-header:active {
+      background: var(--saved-bg);
+    }
+
+    .archive-room-title {
+      font-size: 14px;
+      font-weight: 850;
+      color: var(--archive-header);
+    }
+
+    .archive-room-status {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--remaining-color);
+      margin-top: 2px;
+    }
+
+    .archive-chevron {
+      color: var(--archive-header);
+      font-size: 16px;
+      font-weight: 900;
+      transform: rotate(0deg);
+      transition: transform 0.25s ease;
+    }
+
+    .archive-room-block.expanded .archive-chevron {
+      transform: rotate(180deg);
+    }
+
+    .archive-content {
+      height: 0;
+      overflow: hidden;
+      opacity: 0;
+      border-top: 0 solid var(--border-color);
+      transition:
+        height 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+        opacity 0.22s ease,
+        border-top-width 0.2s ease;
+    }
+
+    .archive-room-block.expanded .archive-content {
+      opacity: 1;
+      border-top-width: 1px;
+    }
+
+    .archive-content-inner {
+      padding: 10px;
+    }
+
+    .archive-content .row-anim-wrapper:last-child {
+      margin-bottom: 0;
+    }
+
+    .completed-room .archive-room-title {
+      color: var(--success-text);
+    }
+
+    /* =========================
+       LOADING / EMPTY / COMPLETE
+       ========================= */
+
+    #loading {
+      text-align: center;
+      margin-top: 50px;
+      color: var(--remaining-color);
+      font-weight: 750;
+      line-height: 1.5;
+    }
+
+    .loading-retry {
+      margin-top: 14px;
+      border: none;
+      background: var(--header-color);
+      color: white;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .complete-message {
+      background: var(--success-bg);
+      color: var(--success-text);
+      border: 1px solid var(--success-border);
+      border-radius: 12px;
+      padding: 18px;
+      text-align: center;
+      font-size: 16px;
+      font-weight: 850;
+      margin: 20px 0;
+      box-shadow: 0 1px 3px var(--shadow);
+    }
+
+    .complete-message-small {
+      display: block;
+      margin-top: 5px;
+      font-size: 12px;
+      font-weight: 650;
+      opacity: 0.9;
+    }
+
+    @media (max-width: 390px) {
+      .app-date {
+        display: none;
+      }
+
+      .progress-box {
+        width: 88px;
+      }
+
+      .stats-text {
+        font-size: 12px;
+      }
+
+      .action-button {
+        padding-left: 9px;
+        padding-right: 9px;
+      }
+
+      .student-name {
+        font-size: 15px;
+      }
+
+      .room-remaining-tag {
+        display: block;
+        margin-left: 0;
+        margin-top: 2px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
   </style>
 </head>
-<body>
 
+<body>
   <div class="top-bar">
     <div class="top-row">
-      <div class="stats-container">
-        <div class="stats-text" id="stats-counter">0 / 0 Done</div>
-        <div class="progress-box"><div class="progress-bar" id="stats-progress"></div></div>
+      <div class="app-heading">
+        <div class="app-title">Lights Out</div>
+        <div class="app-date" id="app-date"></div>
       </div>
-      <div>
-        <label class="theme-switch">
-          <input type="checkbox" id="theme-toggle" onclick="toggleTheme()">
+
+      <div class="top-actions">
+        <div class="stats-container">
+          <div class="stats-text" id="stats-counter">0 / 0 Completed</div>
+
+          <div class="progress-box">
+            <div class="progress-bar" id="stats-progress"></div>
+          </div>
+        </div>
+
+        <label class="theme-switch" aria-label="Toggle dark mode">
+          <input
+            type="checkbox"
+            id="theme-toggle"
+            onchange="toggleTheme()"
+          >
           <span class="slider"></span>
         </label>
       </div>
     </div>
-    
+
     <div class="room-grid" id="dashboard-grid"></div>
   </div>
 
-  <h2>Lights Out</h2>
-  <div id="loading">Loading Rooms...</div>
-  
+  <div class="instructions">
+    <strong>Tap</strong> to mark.
+    Hold <strong>On Time</strong> for Absent.
+    Hold <strong>Late Now</strong> to choose a time.
+    Hold a completed student to undo.
+  </div>
+
+  <div id="loading">Loading rooms…</div>
+
   <div id="active-zone"></div>
-  <div id="archive-divider" class="section-divider" style="display:none;">Completed / Archived</div>
+
+  <div
+    id="archive-divider"
+    class="section-divider"
+    style="display: none;"
+  >
+    Completed / Archived
+  </div>
+
   <div id="archive-zone"></div>
 
   <script>
-    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyA6mUrZ3cLtql5vVPhN6BHc3C1mSIj6oQwJTgScSWVNhtByfrX6pvh4YTYPvNEomSciA/exec";
+    const GOOGLE_SCRIPT_URL =
+      "https://script.google.com/macros/s/AKfycbyA6mUrZ3cLtql5vVPhN6BHc3C1mSIj6oQwJTgScSWVNhtByfrX6pvh4YTYPvNEomSciA/exec";
+
+    const RESULT_PAUSE_MS = 650;
+    const ROW_COLLAPSE_MS = 520;
+    const ROOM_COLLAPSE_MS = 380;
+    const LONG_PRESS_MS = 550;
+    const UNDO_PRESS_MS = 650;
+
     let globalStudents = [];
-    let runningAnimationCount = 0; 
+    let pendingAnimations = 0;
 
-    function vibeLight() { if (navigator.vibrate) navigator.vibrate(15); }
-    function vibeDouble() { if (navigator.vibrate) navigator.vibrate([40, 40, 40]); }
-    function vibeUndo() { if (navigator.vibrate) navigator.vibrate(30); }
+    const pendingRetries = new Map();
+    const savingIndexes = new Set();
+    const expandedArchiveRooms = new Set();
 
-    window.onload = function() {
-      if (localStorage.getItem('theme') === 'dark') {
-        document.documentElement.setAttribute('data-theme', 'dark');
-        document.getElementById('theme-toggle').checked = true;
-      }
-      
-      fetch(GOOGLE_SCRIPT_URL, {
-        method: "POST",
-        body: JSON.stringify({ action: "getRoster" })
-      })
-      .then(res => res.json())
-      .then(data => {
-        globalStudents = data;
-        buildDashboardGrid(); 
-        renderSplitRoster();
-      });
-    };
+    let markTimer = null;
+    let lateTimer = null;
+    let undoTimer = null;
 
-    function toggleTheme() {
-      vibeLight();
-      if (document.getElementById('theme-toggle').checked) {
-        document.documentElement.setAttribute('data-theme', 'dark');
-        localStorage.setItem('theme', 'dark');
+    let markLongPressed = false;
+    let lateLongPressed = false;
+    let undoLongPressed = false;
+
+    function vibeLight() {
+      if (navigator.vibrate) navigator.vibrate(15);
+    }
+
+    function vibeDouble() {
+      if (navigator.vibrate) navigator.vibrate([40, 40, 40]);
+    }
+
+    function vibeUndo() {
+      if (navigator.vibrate) navigator.vibrate(30);
+    }
+
+    window.addEventListener("load", initializeApp);
+
+    async function initializeApp() {
+      loadTheme();
+      showCurrentDate();
+      await loadRoster();
+    }
+
+    function loadTheme() {
+      const savedTheme = localStorage.getItem("theme");
+
+      if (savedTheme === "dark") {
+        document.documentElement.setAttribute("data-theme", "dark");
+        document.getElementById("theme-toggle").checked = true;
+        updateThemeColor("#0f172a");
       } else {
-        document.documentElement.removeAttribute('data-theme');
-        localStorage.setItem('theme', 'light');
+        updateThemeColor("#f5f7fb");
       }
     }
 
-    function buildDashboardGrid() {
-      const gridContainer = document.getElementById('dashboard-grid');
-      gridContainer.innerHTML = '';
-      
-      let distinctRooms = [...new Set(globalStudents.map(s => s.room))].sort((a,b) => a.localeCompare(b, undefined, {numeric:true}));
-      
-      distinctRooms.forEach(roomNum => {
-        const square = document.createElement('div');
-        square.className = 'grid-square';
-        square.id = 'grid-sq-' + roomNum;
-        
-        square.innerHTML = `
-          <div class="grid-fill" id="grid-fill-${roomNum}"></div>
-          <span class="grid-label" id="grid-label-${roomNum}">${roomNum}</span>
+    function toggleTheme() {
+      vibeLight();
+
+      const isDark = document.getElementById("theme-toggle").checked;
+
+      if (isDark) {
+        document.documentElement.setAttribute("data-theme", "dark");
+        localStorage.setItem("theme", "dark");
+        updateThemeColor("#0f172a");
+      } else {
+        document.documentElement.removeAttribute("data-theme");
+        localStorage.setItem("theme", "light");
+        updateThemeColor("#f5f7fb");
+      }
+    }
+
+    function updateThemeColor(color) {
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute("content", color);
+    }
+
+    function showCurrentDate() {
+      const dateElement = document.getElementById("app-date");
+
+      dateElement.textContent = new Intl.DateTimeFormat("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric"
+      }).format(new Date());
+    }
+
+    async function loadRoster() {
+      const loading = document.getElementById("loading");
+
+      loading.style.display = "block";
+      loading.innerHTML = "Loading rooms…";
+
+      try {
+        const response = await fetch(GOOGLE_SCRIPT_URL, {
+          method: "POST",
+          body: JSON.stringify({
+            action: "getRoster"
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Server returned ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (!Array.isArray(data)) {
+          throw new Error("Roster response was not a list.");
+        }
+
+        globalStudents = data.map(student => ({
+          ...student,
+          name: String(student.name ?? ""),
+          room: String(student.room ?? ""),
+          loggedTime: String(student.loggedTime ?? "")
+        }));
+
+        loading.style.display = "none";
+
+        buildDashboardGrid();
+        renderSplitRoster();
+      } catch (error) {
+        console.error("Roster loading failed:", error);
+
+        loading.innerHTML = `
+          Could not load the roster.<br>
+          Check your internet connection and try again.<br>
+          <button class="loading-retry" onclick="loadRoster()">
+            Retry
+          </button>
         `;
+      }
+    }
+
+    function getDistinctRooms() {
+      return [...new Set(globalStudents.map(student => student.room))]
+        .filter(Boolean)
+        .sort((a, b) =>
+          a.localeCompare(b, undefined, {
+            numeric: true,
+            sensitivity: "base"
+          })
+        );
+    }
+
+    function getRoomMetrics() {
+      const roomMetrics = {};
+
+      globalStudents.forEach(student => {
+        if (!roomMetrics[student.room]) {
+          roomMetrics[student.room] = {
+            total: 0,
+            marked: 0
+          };
+        }
+
+        roomMetrics[student.room].total++;
+
+        if (isStudentMarked(student)) {
+          roomMetrics[student.room].marked++;
+        }
+      });
+
+      return roomMetrics;
+    }
+
+    function isStudentMarked(student) {
+      return Boolean(
+        student.loggedTime &&
+        String(student.loggedTime).trim() !== ""
+      );
+    }
+
+    function buildDashboardGrid() {
+      const gridContainer = document.getElementById("dashboard-grid");
+      gridContainer.innerHTML = "";
+
+      getDistinctRooms().forEach(roomNum => {
+        const square = document.createElement("button");
+
+        square.type = "button";
+        square.className = "grid-square";
+        square.id = `grid-sq-${makeSafeId(roomNum)}`;
+        square.setAttribute("aria-label", `Go to room ${roomNum}`);
+
+        square.addEventListener("click", () => {
+          vibeLight();
+          scrollToRoom(roomNum);
+        });
+
+        square.innerHTML = `
+          <div
+            class="grid-fill"
+            id="grid-fill-${makeSafeId(roomNum)}"
+          ></div>
+
+          <span class="grid-label">
+            <span class="grid-room-number">${escapeHtml(roomNum)}</span>
+            <span
+              class="grid-room-ratio"
+              id="grid-ratio-${makeSafeId(roomNum)}"
+            >
+              0/0
+            </span>
+          </span>
+        `;
+
         gridContainer.appendChild(square);
+      });
+    }
+
+    function scrollToRoom(roomNum) {
+      const safeRoom = makeSafeId(roomNum);
+
+      const activeHeader =
+        document.getElementById(`room-hdr-act-${safeRoom}`);
+
+      const archiveBlock =
+        document.getElementById(`archive-room-${safeRoom}`);
+
+      const target = activeHeader || archiveBlock;
+
+      if (!target) return;
+
+      target.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
       });
     }
 
     function calculateStats() {
       const total = globalStudents.length;
-      const marked = globalStudents.filter(s => s.loggedTime && s.loggedTime !== "").length;
-      
-      document.getElementById('stats-counter').innerText = `${marked} / ${total} Completed`;
-      const percentage = total > 0 ? (marked / total) * 100 : 0;
-      document.getElementById('stats-progress').style.width = percentage + '%';
-      
-      document.getElementById('archive-divider').style.display = marked > 0 ? 'block' : 'none';
-      
+
+      const marked = globalStudents.filter(isStudentMarked).length;
+
+      const percentage =
+        total > 0
+          ? (marked / total) * 100
+          : 0;
+
+      document.getElementById("stats-counter").textContent =
+        `${marked} / ${total} Completed`;
+
+      document.getElementById("stats-progress").style.width =
+        `${percentage}%`;
+
+      document.getElementById("archive-divider").style.display =
+        marked > 0
+          ? "block"
+          : "none";
+
       updateDashboardProgress();
     }
 
     function updateDashboardProgress() {
-      let roomMetrics = {};
-      globalStudents.forEach(s => {
-        if (!roomMetrics[s.room]) roomMetrics[s.room] = { total: 0, marked: 0 };
-        roomMetrics[s.room].total++;
-        if (s.loggedTime && s.loggedTime !== "") roomMetrics[s.room].marked++;
-      });
+      const roomMetrics = getRoomMetrics();
 
-      Object.keys(roomMetrics).forEach(roomNum => {
-        const fillEl = document.getElementById(`grid-fill-${roomNum}`);
-        const squareEl = document.getElementById(`grid-sq-${roomNum}`);
-        const labelEl = document.getElementById(`grid-label-${roomNum}`);
-        
-        if (fillEl && squareEl && labelEl) {
-          let m = roomMetrics[roomNum];
-          let fillPercent = (m.marked / m.total) * 100;
-          
-          fillEl.style.height = fillPercent + '%';
-          labelEl.innerText = roomNum; 
-          
-          if (m.marked === m.total) {
-            squareEl.className = 'grid-square room-done';
-          } else {
-            squareEl.className = 'grid-square';
-          }
+      Object.entries(roomMetrics).forEach(([roomNum, metrics]) => {
+        const safeRoom = makeSafeId(roomNum);
+
+        const fillElement =
+          document.getElementById(`grid-fill-${safeRoom}`);
+
+        const squareElement =
+          document.getElementById(`grid-sq-${safeRoom}`);
+
+        const ratioElement =
+          document.getElementById(`grid-ratio-${safeRoom}`);
+
+        if (!fillElement || !squareElement || !ratioElement) {
+          return;
         }
+
+        const fillPercent =
+          metrics.total > 0
+            ? (metrics.marked / metrics.total) * 100
+            : 0;
+
+        fillElement.style.height = `${fillPercent}%`;
+
+        ratioElement.textContent =
+          `${metrics.marked}/${metrics.total}`;
+
+        squareElement.classList.toggle(
+          "room-done",
+          metrics.marked === metrics.total
+        );
       });
     }
 
     function renderSplitRoster() {
-      if (runningAnimationCount > 0) return;
+      if (pendingAnimations > 0) return;
 
-      const activeZone = document.getElementById('active-zone');
-      const archiveZone = document.getElementById('archive-zone');
-      
-      activeZone.innerHTML = '';
-      archiveZone.innerHTML = '';
-      
-      let roomMetrics = {};
-      globalStudents.forEach(s => {
-        if (!roomMetrics[s.room]) roomMetrics[s.room] = { total: 0, marked: 0 };
-        roomMetrics[s.room].total++;
-        if (s.loggedTime && s.loggedTime !== "") roomMetrics[s.room].marked++;
-      });
+      const activeZone = document.getElementById("active-zone");
+      const archiveZone = document.getElementById("archive-zone");
 
-      let distinctRooms = [...new Set(globalStudents.map(s => s.room))].sort((a,b) => a.localeCompare(b, undefined, {numeric:true}));
+      activeZone.innerHTML = "";
+      archiveZone.innerHTML = "";
+
+      const roomMetrics = getRoomMetrics();
+      const distinctRooms = getDistinctRooms();
 
       distinctRooms.forEach(roomNum => {
-        let metrics = roomMetrics[roomNum];
-        let roomKids = globalStudents.filter(s => s.room === roomNum).sort((a,b) => a.name.localeCompare(b.name));
-        
-        let activeKids = roomKids.filter(s => !s.loggedTime || s.loggedTime === "");
-        let archivedKids = roomKids.filter(s => s.loggedTime && s.loggedTime !== "");
+        const indexedRoomStudents = globalStudents
+          .map((student, index) => ({
+            student,
+            index
+          }))
+          .filter(item => item.student.room === roomNum)
+          .sort((a, b) =>
+            a.student.name.localeCompare(
+              b.student.name,
+              undefined,
+              {
+                sensitivity: "base"
+              }
+            )
+          );
 
-        // 1. RENDER ACTIVE ZONE
-        if (activeKids.length > 0) {
-          const block = document.createElement('div');
-          block.className = 'room-block';
-          block.id = 'block-act-' + roomNum;
+        const activeStudents = indexedRoomStudents.filter(
+          item => !isStudentMarked(item.student)
+        );
 
-          const header = document.createElement('div');
-          header.className = 'room-header';
-          header.id = 'room-hdr-act-' + roomNum;
-          header.innerHTML = `
-            <span>Room ${roomNum} <span class="room-remaining-tag" id="ratio-act-${roomNum}">(${metrics.marked}/${metrics.total} Done)</span></span>
-            <div class="room-actions">
-              <button class="btn-bulk" onclick="bulkMarkRoom('${roomNum}')">⚡ Bulk On Time</button>
-            </div>
-          `;
-          block.appendChild(header);
+        const archivedStudents = indexedRoomStudents.filter(
+          item => isStudentMarked(item.student)
+        );
 
-          activeKids.forEach(student => {
-            let origIndex = globalStudents.findIndex(s => s.name === student.name);
-            
-            const wrapper = document.createElement('div');
-            wrapper.className = 'row-anim-wrapper';
-            wrapper.id = 'wrapper-' + origIndex;
-            wrapper.appendChild(createStudentRow(student, origIndex, false));
-            
-            block.appendChild(wrapper);
-          });
-          activeZone.appendChild(block);
+        if (activeStudents.length > 0) {
+          activeZone.appendChild(
+            createActiveRoomBlock(
+              roomNum,
+              activeStudents,
+              roomMetrics[roomNum]
+            )
+          );
         }
 
-        // 2. RENDER ARCHIVE ZONE
-        if (archivedKids.length > 0) {
-          const header = document.createElement('div');
-          header.className = 'room-header';
-          header.id = 'room-hdr-arc-' + roomNum;
-          
-          if (metrics.total === metrics.marked) {
-            header.className = 'room-header completed';
-            header.innerHTML = `<span>Room ${roomNum} ✅</span>`;
-          } else {
-            header.className = 'room-header archive-partial';
-            header.innerHTML = `<span>Room ${roomNum} (${metrics.marked}/${metrics.total} Checked In)</span>`;
-          }
-          archiveZone.appendChild(header);
-
-          archivedKids.forEach(student => {
-            let origIndex = globalStudents.findIndex(s => s.name === student.name);
-            
-            const wrapper = document.createElement('div');
-            wrapper.className = 'row-anim-wrapper';
-            wrapper.appendChild(createStudentRow(student, origIndex, true));
-            
-            archiveZone.appendChild(wrapper);
-          });
+        if (archivedStudents.length > 0) {
+          archiveZone.appendChild(
+            createArchiveRoomBlock(
+              roomNum,
+              archivedStudents,
+              roomMetrics[roomNum]
+            )
+          );
         }
       });
+
+      const remainingCount =
+        globalStudents.filter(student => !isStudentMarked(student)).length;
+
+      if (
+        globalStudents.length > 0 &&
+        remainingCount === 0
+      ) {
+        const completeMessage = document.createElement("div");
+
+        completeMessage.className = "complete-message";
+
+        completeMessage.innerHTML = `
+          Lights Out Complete
+          <span class="complete-message-small">
+            All ${globalStudents.length} students have been processed.
+          </span>
+        `;
+
+        activeZone.appendChild(completeMessage);
+      }
 
       calculateStats();
     }
 
-    function createStudentRow(student, origIndex, isArchived) {
-      const row = document.createElement('div');
-      row.className = 'student-row';
-      row.id = 'row-' + origIndex;
-      
-      let safeName = student.name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
-      let actionHtml = '';
-      
-      if (isArchived) {
-         row.setAttribute('onpointerdown', `startUndoPress('${safeName}', ${origIndex})`);
-         row.setAttribute('onpointerup', `endUndoPress()`);
-         row.setAttribute('onpointerleave', `cancelUndoPress()`);
-         row.setAttribute('onpointercancel', `cancelUndoPress()`);
-         row.setAttribute('oncontextmenu', 'return false;');
-         
-         actionHtml = `<div class="saved-text">${student.loggedTime}</div>`;
-         if (student.loggedTime === "On Time") row.classList.add('row-success');
-         else if (student.loggedTime === "Absent") row.classList.add('row-absent');
-         else row.classList.add('row-late');
-      } else {
-         actionHtml = `
-          <div class="btn-container" id="btns-${origIndex}">
-            <button class="btn-on-time" 
-                    onpointerdown="startMarkPress('${safeName}', ${origIndex})" 
-                    onpointerup="endMarkPress('${safeName}', 'on_time', ${origIndex})" 
-                    onpointerleave="cancelMarkPress()" 
-                    onpointercancel="cancelMarkPress()"
-                    oncontextmenu="return false;">On Time</button>
-            <button class="btn-late" 
-                    onpointerdown="startLatePress('${safeName}', ${origIndex})"
-                    onpointerup="endLatePress('${safeName}', ${origIndex})"
-                    onpointerleave="cancelLatePress()"
-                    onpointercancel="cancelLatePress()"
-                    oncontextmenu="return false;">Log Time</button>
-            
-            <input type="time" id="picker-${origIndex}" class="time-picker-hidden" onchange="submitPickerTime('${safeName}', ${origIndex})">
-          </div>
-         `;
+    function createActiveRoomBlock(
+      roomNum,
+      activeStudents,
+      metrics
+    ) {
+      const safeRoom = makeSafeId(roomNum);
+
+      const block = document.createElement("section");
+
+      block.className = "room-block";
+      block.id = `block-act-${safeRoom}`;
+
+      const header = document.createElement("div");
+
+      header.className = "room-header";
+      header.id = `room-hdr-act-${safeRoom}`;
+
+      header.innerHTML = `
+        <div class="room-title">
+          Room ${escapeHtml(roomNum)}
+          <span
+            class="room-remaining-tag"
+            id="ratio-act-${safeRoom}"
+          >
+            (${metrics.marked}/${metrics.total} Done)
+          </span>
+        </div>
+
+        <div class="room-actions">
+          <button
+            type="button"
+            class="btn-bulk"
+            onclick="bulkMarkRoom(${JSON.stringify(roomNum)})"
+          >
+            Mark ${activeStudents.length} On Time
+          </button>
+        </div>
+      `;
+
+      block.appendChild(header);
+
+      activeStudents.forEach(({ student, index }) => {
+        const wrapper = document.createElement("div");
+
+        wrapper.className = "row-anim-wrapper";
+        wrapper.id = `wrapper-${index}`;
+
+        wrapper.appendChild(
+          createStudentRow(
+            student,
+            index,
+            false
+          )
+        );
+
+        block.appendChild(wrapper);
+      });
+
+      return block;
+    }
+
+    function createArchiveRoomBlock(
+      roomNum,
+      archivedStudents,
+      metrics
+    ) {
+      const safeRoom = makeSafeId(roomNum);
+
+      const block = document.createElement("section");
+
+      block.className = "archive-room-block";
+      block.id = `archive-room-${safeRoom}`;
+
+      if (metrics.marked === metrics.total) {
+        block.classList.add("completed-room");
       }
 
-      row.innerHTML = `
-        <div class="student-name">${student.name}</div>
-        <div id="action-holder-${origIndex}">${actionHtml}</div>
+      if (expandedArchiveRooms.has(roomNum)) {
+        block.classList.add("expanded");
+      }
+
+      const header = document.createElement("div");
+
+      header.className = "archive-room-header";
+      header.setAttribute("role", "button");
+      header.setAttribute("tabindex", "0");
+
+      const statusText =
+        metrics.marked === metrics.total
+          ? `${metrics.marked} completed`
+          : `${metrics.marked} of ${metrics.total} completed`;
+
+      header.innerHTML = `
+        <div>
+          <div class="archive-room-title">
+            Room ${escapeHtml(roomNum)}
+            ${metrics.marked === metrics.total ? "✓" : ""}
+          </div>
+
+          <div class="archive-room-status">
+            ${statusText}
+          </div>
+        </div>
+
+        <div class="archive-chevron">⌄</div>
       `;
+
+      header.addEventListener("click", () => {
+        toggleArchiveRoom(roomNum);
+      });
+
+      header.addEventListener("keydown", event => {
+        if (
+          event.key === "Enter" ||
+          event.key === " "
+        ) {
+          event.preventDefault();
+          toggleArchiveRoom(roomNum);
+        }
+      });
+
+      const content = document.createElement("div");
+      content.className = "archive-content";
+
+      const inner = document.createElement("div");
+      inner.className = "archive-content-inner";
+
+      archivedStudents.forEach(({ student, index }) => {
+        const wrapper = document.createElement("div");
+
+        wrapper.className = "row-anim-wrapper";
+        wrapper.id = `archive-wrapper-${index}`;
+
+        wrapper.appendChild(
+          createStudentRow(
+            student,
+            index,
+            true
+          )
+        );
+
+        inner.appendChild(wrapper);
+      });
+
+      content.appendChild(inner);
+
+      block.appendChild(header);
+      block.appendChild(content);
+
+      requestAnimationFrame(() => {
+        if (block.classList.contains("expanded")) {
+          content.style.height = `${inner.scrollHeight}px`;
+        }
+      });
+
+      return block;
+    }
+
+    function toggleArchiveRoom(roomNum) {
+      vibeLight();
+
+      const safeRoom = makeSafeId(roomNum);
+      const block = document.getElementById(
+        `archive-room-${safeRoom}`
+      );
+
+      if (!block) return;
+
+      const content = block.querySelector(".archive-content");
+      const inner = block.querySelector(".archive-content-inner");
+
+      if (!content || !inner) return;
+
+      const isExpanded = block.classList.contains("expanded");
+
+      if (isExpanded) {
+        content.style.height = `${content.scrollHeight}px`;
+
+        requestAnimationFrame(() => {
+          block.classList.remove("expanded");
+          content.style.height = "0px";
+        });
+
+        expandedArchiveRooms.delete(roomNum);
+      } else {
+        block.classList.add("expanded");
+        content.style.height = `${inner.scrollHeight}px`;
+        expandedArchiveRooms.add(roomNum);
+      }
+    }
+
+    function createStudentRow(
+      student,
+      index,
+      isArchived
+    ) {
+      const row = document.createElement("div");
+
+      row.className = "student-row";
+      row.id = `row-${index}`;
+
+      const nameElement = document.createElement("div");
+
+      nameElement.className = "student-name";
+      nameElement.textContent = student.name;
+
+      const actionHolder = document.createElement("div");
+
+      actionHolder.id = `action-holder-${index}`;
+
+      if (isArchived) {
+        applyLoggedState(row, student.loggedTime);
+
+        actionHolder.innerHTML = `
+          <div class="saved-text">
+            ${escapeHtml(student.loggedTime)}
+          </div>
+        `;
+
+        row.addEventListener("pointerdown", () => {
+          startUndoPress(index);
+        });
+
+        row.addEventListener("pointerup", endUndoPress);
+        row.addEventListener("pointerleave", cancelUndoPress);
+        row.addEventListener("pointercancel", cancelUndoPress);
+
+        row.addEventListener("contextmenu", event => {
+          event.preventDefault();
+        });
+      } else {
+        const buttonContainer = document.createElement("div");
+        buttonContainer.className = "btn-container";
+        buttonContainer.id = `btns-${index}`;
+
+        const onTimeButton = document.createElement("button");
+
+        onTimeButton.type = "button";
+        onTimeButton.className =
+          "action-button btn-on-time";
+        onTimeButton.textContent = "On Time";
+
+        onTimeButton.addEventListener("pointerdown", () => {
+          startMarkPress(index);
+        });
+
+        onTimeButton.addEventListener("pointerup", () => {
+          endMarkPress(index);
+        });
+
+        onTimeButton.addEventListener(
+          "pointerleave",
+          cancelMarkPress
+        );
+
+        onTimeButton.addEventListener(
+          "pointercancel",
+          cancelMarkPress
+        );
+
+        onTimeButton.addEventListener("contextmenu", event => {
+          event.preventDefault();
+        });
+
+        const lateButton = document.createElement("button");
+
+        lateButton.type = "button";
+        lateButton.className =
+          "action-button btn-late";
+        lateButton.textContent = "Late Now";
+
+        lateButton.addEventListener("pointerdown", () => {
+          startLatePress(index);
+        });
+
+        lateButton.addEventListener("pointerup", () => {
+          endLatePress(index);
+        });
+
+        lateButton.addEventListener(
+          "pointerleave",
+          cancelLatePress
+        );
+
+        lateButton.addEventListener(
+          "pointercancel",
+          cancelLatePress
+        );
+
+        lateButton.addEventListener("contextmenu", event => {
+          event.preventDefault();
+        });
+
+        const timePicker = document.createElement("input");
+
+        timePicker.type = "time";
+        timePicker.id = `picker-${index}`;
+        timePicker.className = "time-picker-hidden";
+
+        timePicker.addEventListener("change", () => {
+          submitPickerTime(index);
+        });
+
+        buttonContainer.appendChild(onTimeButton);
+        buttonContainer.appendChild(lateButton);
+        buttonContainer.appendChild(timePicker);
+
+        actionHolder.appendChild(buttonContainer);
+      }
+
+      row.appendChild(nameElement);
+      row.appendChild(actionHolder);
+
       return row;
     }
 
-    // --- LONG PRESS FOR ABSENT ---
-    let markTimer;
-    let isMarkLongPress = false;
+    function applyLoggedState(row, loggedTime) {
+      row.classList.remove(
+        "row-success",
+        "row-late",
+        "row-absent",
+        "row-error"
+      );
 
-    function startMarkPress(name, index) {
-      isMarkLongPress = false;
-      markTimer = setTimeout(() => {
-        isMarkLongPress = true;
-        vibeDouble();
-        logTime(name, 'absent', index);
-      }, 500); 
+      if (loggedTime === "On Time") {
+        row.classList.add("row-success");
+      } else if (loggedTime === "Absent") {
+        row.classList.add("row-absent");
+      } else {
+        row.classList.add("row-late");
+      }
     }
-    function endMarkPress(name, type, index) {
+
+    /* =========================
+       ON TIME / ABSENT PRESS
+       ========================= */
+
+    function startMarkPress(index) {
+      if (savingIndexes.has(index)) return;
+
+      markLongPressed = false;
+
       clearTimeout(markTimer);
-      if (!isMarkLongPress) {
-        vibeLight();
-        logTime(name, type, index); 
-      }
-    }
-    function cancelMarkPress() { clearTimeout(markTimer); }
 
-    // --- LONG PRESS FOR NATIVE TIME WHEEL DIALOG ---
-    let lateTimer;
-    let isLateLongPress = false;
-
-    function startLatePress(name, index) {
-      isLateLongPress = false;
-      lateTimer = setTimeout(() => {
-        isLateLongPress = true;
+      markTimer = setTimeout(() => {
+        markLongPressed = true;
         vibeDouble();
-        
-        // Trigger click event on the hidden standard time field element
-        const pickerEl = document.getElementById(`picker-${index}`);
-        if (pickerEl) {
-          pickerEl.showPicker(); // Instantly tells Android OS to throw open the native clock overlay
-        }
-      }, 500);
+
+        logTime(index, "absent");
+      }, LONG_PRESS_MS);
     }
-    function endLatePress(name, index) {
-      clearTimeout(lateTimer);
-      if (!isLateLongPress) {
+
+    function endMarkPress(index) {
+      clearTimeout(markTimer);
+
+      if (
+        !markLongPressed &&
+        !savingIndexes.has(index)
+      ) {
         vibeLight();
-        logTime(name, 'late', index); 
+        logTime(index, "on_time");
       }
     }
-    function cancelLatePress() { clearTimeout(lateTimer); }
 
-    // --- PARSE SELECTION FROM OS DIALOG OVERLAY ---
-    function submitPickerTime(name, index) {
-      const pickerEl = document.getElementById(`picker-${index}`);
-      if (!pickerEl || !pickerEl.value) return;
-      
-      let timeVal = pickerEl.value; // Returns "HH:MM" 24-hr layout string
-      let parts = timeVal.split(':');
-      let hr = parseInt(parts[0], 10);
-      let mn = parts[1];
-      
-      // Map 24hr format down to human readable PM standard
-      let suffix = " PM";
-      if (hr === 0) { hr = 12; suffix = " AM"; }
-      else if (hr < 12) { suffix = " AM"; }
-      else if (hr > 12) { hr = hr - 12; }
-      
-      let finalString = `${hr}:${mn}${suffix}`;
-      logTime(name, 'late', index, finalString);
+    function cancelMarkPress() {
+      clearTimeout(markTimer);
     }
 
-    // --- LONG PRESS FOR UNDO ---
-    let undoTimer;
-    let isUndoLongPress = false;
+    /* =========================
+       LATE / CUSTOM TIME PRESS
+       ========================= */
 
-    function startUndoPress(name, index) {
-      isUndoLongPress = false;
+    function startLatePress(index) {
+      if (savingIndexes.has(index)) return;
+
+      lateLongPressed = false;
+
+      clearTimeout(lateTimer);
+
+      lateTimer = setTimeout(() => {
+        lateLongPressed = true;
+        vibeDouble();
+
+        openTimePicker(index);
+      }, LONG_PRESS_MS);
+    }
+
+    function endLatePress(index) {
+      clearTimeout(lateTimer);
+
+      if (
+        !lateLongPressed &&
+        !savingIndexes.has(index)
+      ) {
+        vibeLight();
+        logTime(index, "late");
+      }
+    }
+
+    function cancelLatePress() {
+      clearTimeout(lateTimer);
+    }
+
+    function openTimePicker(index) {
+      const picker = document.getElementById(
+        `picker-${index}`
+      );
+
+      if (!picker) return;
+
+      try {
+        if (typeof picker.showPicker === "function") {
+          picker.showPicker();
+        } else {
+          picker.click();
+        }
+      } catch (error) {
+        console.warn("Native time picker failed:", error);
+        picker.click();
+      }
+    }
+
+    function submitPickerTime(index) {
+      const picker = document.getElementById(
+        `picker-${index}`
+      );
+
+      if (!picker || !picker.value) return;
+
+      const finalTime = convert24HourTime(
+        picker.value
+      );
+
+      picker.value = "";
+
+      logTime(
+        index,
+        "late",
+        finalTime
+      );
+    }
+
+    function convert24HourTime(timeValue) {
+      const [hourString, minute] =
+        timeValue.split(":");
+
+      let hour = Number.parseInt(
+        hourString,
+        10
+      );
+
+      let suffix = "AM";
+
+      if (hour === 0) {
+        hour = 12;
+      } else if (hour === 12) {
+        suffix = "PM";
+      } else if (hour > 12) {
+        hour -= 12;
+        suffix = "PM";
+      }
+
+      return `${hour}:${minute} ${suffix}`;
+    }
+
+    /* =========================
+       UNDO PRESS
+       ========================= */
+
+    function startUndoPress(index) {
+      undoLongPressed = false;
+
+      clearTimeout(undoTimer);
+
       undoTimer = setTimeout(() => {
-        isUndoLongPress = true;
+        undoLongPressed = true;
         vibeUndo();
-        undoTap(name, index);
-      }, 600); 
-    }
-    function endUndoPress() { clearTimeout(undoTimer); }
-    function cancelUndoPress() { clearTimeout(undoTimer); }
 
-    function logTime(name, type, index, manualTime = null) {
-      let match = globalStudents[index];
-      const targetRow = document.getElementById('row-' + index);
-      const wrapper = document.getElementById('wrapper-' + index);
-      const holder = document.getElementById('action-holder-' + index);
-      
-      if (type === 'late' && !manualTime) vibeLight();
-      
-      if (targetRow && holder) {
-        holder.innerHTML = `<div class="saved-text">...</div>`;
-        targetRow.className = 'student-row';
-        if (type === 'on_time') targetRow.classList.add('row-success');
-        else if (type === 'absent') targetRow.classList.add('row-absent');
-        else targetRow.classList.add('row-late');
-      }
-      
-      let payload = { action: "logTime", name: name, type: type };
+        undoStudent(index);
+      }, UNDO_PRESS_MS);
+    }
+
+    function endUndoPress() {
+      clearTimeout(undoTimer);
+    }
+
+    function cancelUndoPress() {
+      clearTimeout(undoTimer);
+    }
+
+    /* =========================
+       SAVE STUDENT
+       ========================= */
+
+    async function logTime(
+      index,
+      type,
+      manualTime = null
+    ) {
+      if (savingIndexes.has(index)) return;
+
+      const student = globalStudents[index];
+
+      if (!student) return;
+
+      savingIndexes.add(index);
+
+      pendingRetries.delete(index);
+
+      showSavingState(index, type);
+
+      const payload = {
+        action: "logTime",
+        name: student.name,
+        type
+      };
+
       if (manualTime) {
         payload.manualTime = manualTime;
       }
 
-      fetch(GOOGLE_SCRIPT_URL, {
-        method: "POST",
-        body: JSON.stringify(payload)
-      })
-      .then(res => res.json())
-      .then(data => {
-        match.loggedTime = data.time;
-        if (holder) holder.innerHTML = `<div class="saved-text">${data.time}</div>`;
-        
-        updateHeaderRatio(match.room);
-        calculateStats(); 
+      try {
+        const response = await fetch(
+          GOOGLE_SCRIPT_URL,
+          {
+            method: "POST",
+            body: JSON.stringify(payload)
+          }
+        );
 
-        if (wrapper) {
-          runningAnimationCount++;
-          wrapper.classList.add('collapse-active'); 
-          
-          setTimeout(() => {
-            runningAnimationCount--;
-            checkBlockCompletion(match.room);
-            renderSplitRoster(); 
-          }, 820);
-        } else {
-          renderSplitRoster();
+        if (!response.ok) {
+          throw new Error(
+            `Server returned ${response.status}`
+          );
         }
-      });
-    }
 
-    function updateHeaderRatio(roomNum) {
-      let total = globalStudents.filter(s => s.room === roomNum).length;
-      let marked = globalStudents.filter(s => s.room === roomNum && s.loggedTime && s.loggedTime !== "").length;
-      const tag = document.getElementById('ratio-act-' + roomNum);
-      if (tag) tag.innerText = `(${marked}/${total} Done)`;
-    }
+        const data = await response.json();
 
-    function checkBlockCompletion(roomNum) {
-      let unmarkedLeft = globalStudents.filter(s => s.room === roomNum && (!s.loggedTime || s.loggedTime === "")).length;
-      if (unmarkedLeft === 0) {
-        const block = document.getElementById('block-act-' + roomNum);
-        if (block) block.classList.add('collapse-block'); 
+        if (
+          !data ||
+          typeof data.time !== "string"
+        ) {
+          throw new Error(
+            "Server did not return a valid time."
+          );
+        }
+
+        student.loggedTime = data.time;
+
+        showSavedState(
+          index,
+          data.time
+        );
+
+        updateHeaderRatio(student.room);
+        calculateStats();
+
+        savingIndexes.delete(index);
+
+        window.setTimeout(() => {
+          animateRowOut(
+            index,
+            student.room
+          );
+        }, RESULT_PAUSE_MS);
+      } catch (error) {
+        console.error("Saving failed:", error);
+
+        savingIndexes.delete(index);
+
+        pendingRetries.set(index, {
+          type,
+          manualTime
+        });
+
+        showSaveError(index);
       }
     }
 
-    function undoTap(name, index) {
-      let match = globalStudents[index];
-      match.loggedTime = "";
-      renderSplitRoster();
-      updateDashboardProgress(); 
+    function showSavingState(index, type) {
+      const row = document.getElementById(
+        `row-${index}`
+      );
 
-      fetch(GOOGLE_SCRIPT_URL, {
-        method: "POST",
-        body: JSON.stringify({ action: "clearRow", name: name })
-      });
+      const holder = document.getElementById(
+        `action-holder-${index}`
+      );
+
+      if (!row || !holder) return;
+
+      row.classList.remove(
+        "row-success",
+        "row-late",
+        "row-absent",
+        "row-error"
+      );
+
+      if (type === "on_time") {
+        row.classList.add("row-success");
+      } else if (type === "absent") {
+        row.classList.add("row-absent");
+      } else {
+        row.classList.add("row-late");
+      }
+
+      holder.innerHTML = `
+        <div class="saved-text saving-text">
+          <span class="saving-spinner"></span>
+          Saving…
+        </div>
+      `;
     }
 
-    function bulkMarkRoom(roomNum) {
+    function showSavedState(index, savedTime) {
+      const row = document.getElementById(
+        `row-${index}`
+      );
+
+      const holder = document.getElementById(
+        `action-holder-${index}`
+      );
+
+      if (!row || !holder) return;
+
+      applyLoggedState(row, savedTime);
+
+      holder.innerHTML = `
+        <div class="saved-text">
+          ${escapeHtml(savedTime)}
+        </div>
+      `;
+    }
+
+    function showSaveError(index) {
+      const row = document.getElementById(
+        `row-${index}`
+      );
+
+      const holder = document.getElementById(
+        `action-holder-${index}`
+      );
+
+      if (!row || !holder) return;
+
+      row.classList.remove(
+        "row-success",
+        "row-late",
+        "row-absent"
+      );
+
+      row.classList.add("row-error");
+
+      holder.innerHTML = `
+        <button
+          type="button"
+          class="retry-button"
+          onclick="retryLog(${index})"
+        >
+          Retry
+        </button>
+      `;
+    }
+
+    function retryLog(index) {
+      const retryData =
+        pendingRetries.get(index);
+
+      if (!retryData) {
+        renderSplitRoster();
+        return;
+      }
+
       vibeLight();
-      let unmarkedInRoom = globalStudents.filter(s => s.room === roomNum && (!s.loggedTime || s.loggedTime === ""));
-      
-      unmarkedInRoom.forEach((student, seqIndex) => {
-        let origIndex = globalStudents.findIndex(s => s.name === student.name);
-        setTimeout(() => {
-          logTime(student.name, 'on_time', origIndex);
-        }, seqIndex * 150);
+
+      logTime(
+        index,
+        retryData.type,
+        retryData.manualTime
+      );
+    }
+
+    /* =========================
+       SMOOTH ROW REMOVAL
+       ========================= */
+
+    function animateRowOut(index, roomNum) {
+      const wrapper = document.getElementById(
+        `wrapper-${index}`
+      );
+
+      if (!wrapper) {
+        renderSplitRoster();
+        return;
+      }
+
+      pendingAnimations++;
+
+      const measuredHeight =
+        wrapper.getBoundingClientRect().height;
+
+      wrapper.style.height =
+        `${measuredHeight}px`;
+
+      wrapper.getBoundingClientRect();
+
+      requestAnimationFrame(() => {
+        wrapper.classList.add("row-leaving");
+        wrapper.style.height = "0px";
       });
+
+      window.setTimeout(() => {
+        wrapper.remove();
+
+        const safeRoom = makeSafeId(roomNum);
+
+        const roomBlock =
+          document.getElementById(
+            `block-act-${safeRoom}`
+          );
+
+        const activeRowsLeft =
+          roomBlock
+            ? roomBlock.querySelectorAll(
+                ".row-anim-wrapper"
+              ).length
+            : 0;
+
+        const unmarkedLeft =
+          globalStudents.filter(student =>
+            student.room === roomNum &&
+            !isStudentMarked(student)
+          ).length;
+
+        if (
+          roomBlock &&
+          activeRowsLeft === 0 &&
+          unmarkedLeft === 0
+        ) {
+          collapseFinishedRoom(
+            roomBlock,
+            finishRowAnimation
+          );
+        } else {
+          finishRowAnimation();
+        }
+      }, ROW_COLLAPSE_MS + 40);
+    }
+
+    function collapseFinishedRoom(
+      roomBlock,
+      callback
+    ) {
+      const blockHeight =
+        roomBlock.getBoundingClientRect().height;
+
+      roomBlock.style.height =
+        `${blockHeight}px`;
+
+      roomBlock.getBoundingClientRect();
+
+      requestAnimationFrame(() => {
+        roomBlock.classList.add("room-leaving");
+        roomBlock.style.height = "0px";
+      });
+
+      window.setTimeout(
+        callback,
+        ROOM_COLLAPSE_MS + 40
+      );
+    }
+
+    function finishRowAnimation() {
+      pendingAnimations =
+        Math.max(
+          0,
+          pendingAnimations - 1
+        );
+
+      if (pendingAnimations === 0) {
+        renderSplitRoster();
+      }
+    }
+
+    function updateHeaderRatio(roomNum) {
+      const total =
+        globalStudents.filter(
+          student => student.room === roomNum
+        ).length;
+
+      const marked =
+        globalStudents.filter(
+          student =>
+            student.room === roomNum &&
+            isStudentMarked(student)
+        ).length;
+
+      const tag = document.getElementById(
+        `ratio-act-${makeSafeId(roomNum)}`
+      );
+
+      if (tag) {
+        tag.textContent =
+          `(${marked}/${total} Done)`;
+      }
+    }
+
+    /* =========================
+       UNDO
+       ========================= */
+
+    async function undoStudent(index) {
+      const student = globalStudents[index];
+
+      if (!student) return;
+
+      const previousTime =
+        student.loggedTime;
+
+      student.loggedTime = "";
+
+      pendingRetries.delete(index);
+
+      renderSplitRoster();
+
+      try {
+        const response = await fetch(
+          GOOGLE_SCRIPT_URL,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              action: "clearRow",
+              name: student.name
+            })
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(
+            `Server returned ${response.status}`
+          );
+        }
+      } catch (error) {
+        console.error("Undo failed:", error);
+
+        student.loggedTime =
+          previousTime;
+
+        renderSplitRoster();
+
+        alert(
+          "The undo could not be saved. Please check your connection and try again."
+        );
+      }
+    }
+
+    /* =========================
+       BULK MARK ROOM
+       ========================= */
+
+    function bulkMarkRoom(roomNum) {
+      const unmarkedStudents =
+        globalStudents
+          .map((student, index) => ({
+            student,
+            index
+          }))
+          .filter(
+            item =>
+              item.student.room === roomNum &&
+              !isStudentMarked(item.student) &&
+              !savingIndexes.has(item.index)
+          );
+
+      if (unmarkedStudents.length === 0) {
+        return;
+      }
+
+      const confirmed = window.confirm(
+        `Mark all ${unmarkedStudents.length} remaining students in Room ${roomNum} as On Time?`
+      );
+
+      if (!confirmed) return;
+
+      vibeLight();
+
+      unmarkedStudents.forEach(
+        ({ index }, sequenceIndex) => {
+          window.setTimeout(() => {
+            logTime(index, "on_time");
+          }, sequenceIndex * 180);
+        }
+      );
+    }
+
+    /* =========================
+       UTILITIES
+       ========================= */
+
+    function makeSafeId(value) {
+      return String(value)
+        .replace(/[^a-zA-Z0-9_-]/g, "_");
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
     }
   </script>
 </body>
